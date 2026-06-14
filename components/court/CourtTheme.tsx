@@ -246,7 +246,9 @@ export default function CourtTheme() {
               'https://twitter.com/intent/tweet?text=' +
               encodeURIComponent(
                 'I have just signed the International Declaration of Football Accuracy. It is time to end the linguistic dark ages. Educate yourselves: ',
-              )
+              ) +
+              '&url=' +
+              encodeURIComponent('https://itscalledfootball.vercel.app')
             }
             target="_blank"
             rel="noreferrer"

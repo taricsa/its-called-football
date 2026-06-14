@@ -346,7 +346,7 @@ export default function MemeTheme() {
 
         <footer className="pt-4 text-center">
           <a
-            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent('#ItsCalledFootball help protect an isolated American from etymological confusion today: ')}`}
+            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent('#ItsCalledFootball help protect an isolated American from etymological confusion today: ')}&url=${encodeURIComponent('https://itscalledfootball.vercel.app')}`}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-6 py-3 font-mono text-xs font-black uppercase text-zinc-300 shadow-xl transition hover:border-zinc-700 hover:text-white"
