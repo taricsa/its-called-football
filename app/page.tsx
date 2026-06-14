@@ -1,10 +1,7 @@
-'use client';
+import { themeVariantFlag } from '@/flags';
 
-import { useState } from 'react';
-import type { ThemeVariant } from '@/types/theme';
-
-export default function Home() {
-  const [variant] = useState<ThemeVariant>('court');
+export default async function Home() {
+  const variant = await themeVariantFlag();
 
   return (
     <div>
