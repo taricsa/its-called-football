@@ -1,5 +1,7 @@
 import { headers } from 'next/headers';
 import { themeFlag } from '@/flags';
+import MetricQuizModal from '@/components/blocker/MetricQuizModal';
+import CourtTheme from '@/components/court/CourtTheme';
 
 type HomeProps = {
   searchParams: Promise<{ us?: string }>;
@@ -13,24 +15,25 @@ export default async function Home({ searchParams }: HomeProps) {
   const isAmerican = country === 'US' || params.us === 'true';
   const variant = await themeFlag();
 
-  if (isAmerican) {
+  const renderMainContent = () => {
+    if (variant === 'court') {
+      return <CourtTheme />;
+    }
+
     return (
-      <div className="flex min-h-full items-center justify-center p-8">
-        <div className="max-w-md rounded-lg border border-red-300 bg-red-50 p-6 text-center text-red-900">
-          Access to sign the petition is strictly blocked until you pass a
-          metric literacy test.
+      <div className="flex min-h-full items-center justify-center bg-zinc-950 p-8 text-white">
+        <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-6 text-center font-bold">
+          ⚡ Meme Theme Active (Under Construction)
         </div>
       </div>
     );
+  };
+
+  if (isAmerican) {
+    return (
+      <MetricQuizModal variant={variant}>{renderMainContent()}</MetricQuizModal>
+    );
   }
 
-  return (
-    <div className="flex min-h-full items-center justify-center p-8">
-      <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-6 text-center text-zinc-900">
-        {variant === 'court'
-          ? 'Court of Justice theme active'
-          : 'Meme theme active'}
-      </div>
-    </div>
-  );
+  return renderMainContent();
 }
