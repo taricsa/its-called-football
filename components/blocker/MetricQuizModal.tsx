@@ -3,6 +3,24 @@
 import React, { useState } from 'react';
 import type { ThemeVariant } from '@/types/theme';
 
+const SITE_URL = 'https://itscalledfootball.vercel.app';
+
+const WARNING_SHARE_URL =
+  'https://twitter.com/intent/tweet?text=' +
+  encodeURIComponent(
+    'You have been reported to the International Football Naming Authority. Comply immediately: ',
+  ) +
+  '&url=' +
+  encodeURIComponent(SITE_URL);
+
+const FAILED_SHARE_URL =
+  'https://twitter.com/intent/tweet?text=' +
+  encodeURIComponent(
+    "I just failed the Metric Literacy Compliance Exam on It's Called Football. I don't know what a kilometer is. Help save me: ",
+  ) +
+  '&url=' +
+  encodeURIComponent(SITE_URL);
+
 type MetricQuizModalProps = {
   variant: ThemeVariant;
   children: React.ReactNode;
@@ -52,12 +70,22 @@ export default function MetricQuizModal({
                 until you configure what a kilometer actually is.
               </p>
             </div>
-            <button
-              onClick={() => setCurrentStep('q1')}
-              className="active:scale-[0.98] w-full rounded-xl bg-red-600 py-3.5 font-bold text-white shadow-lg shadow-red-900/30 transition hover:bg-red-500"
-            >
-              Take Metric Literacy Test to Request Access
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={() => setCurrentStep('q1')}
+                className="active:scale-[0.98] w-full rounded-xl bg-red-600 py-3.5 font-bold text-white shadow-lg shadow-red-900/30 transition hover:bg-red-500"
+              >
+                Take Metric Literacy Test to Request Access
+              </button>
+              <a
+                href={WARNING_SHARE_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex w-full items-center justify-center rounded-xl border border-zinc-700 bg-zinc-950 py-3.5 font-semibold text-zinc-300 transition hover:border-zinc-500 hover:text-white"
+              >
+                📢 Send this to an American friend
+              </a>
+            </div>
           </div>
         )}
 
@@ -190,6 +218,14 @@ export default function MetricQuizModal({
                 Educate Me
               </a>
             </div>
+            <a
+              href={FAILED_SHARE_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex w-full items-center justify-center rounded-xl border border-red-500/40 bg-red-950 py-3.5 font-bold text-red-400 shadow-lg shadow-red-950/30 transition hover:border-red-400 hover:bg-red-900/40 hover:text-red-300"
+            >
+              🕊️ Share My Shame &amp; Admit Defeat
+            </a>
           </div>
         )}
       </div>
