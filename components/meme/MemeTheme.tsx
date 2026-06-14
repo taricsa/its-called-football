@@ -1,8 +1,21 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import GlobalCounter from '@/components/shared/GlobalCounter';
 import TranslationMatrix from '@/components/shared/TranslationMatrix';
+
+function getTimeToYear3000() {
+  const target = new Date('3000-01-01T00:00:00Z').getTime();
+  const diff = Math.max(0, target - Date.now());
+  const secs = Math.floor(diff / 1000);
+  return {
+    years: Math.floor(secs / (365.25 * 24 * 3600)),
+    days: Math.floor((secs % (365.25 * 24 * 3600)) / (24 * 3600)),
+    hours: Math.floor((secs % (24 * 3600)) / 3600),
+    mins: Math.floor((secs % 3600) / 60),
+    secs: secs % 60,
+  };
+}
 
 export default function MemeTheme() {
   const [input, setInput] = useState('');
@@ -13,39 +26,63 @@ export default function MemeTheme() {
   const [generatedApology, setGeneratedApology] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const [timeLeft, setTimeRemaining] = useState({
-    years: 974,
-    days: 124,
-    hours: 5,
-    mins: 42,
-    secs: 19,
-  });
+  const [timeLeft, setTimeRemaining] = useState(getTimeToYear3000);
+
+  const whistleRef = useRef<HTMLAudioElement | null>(null);
+  const hadSoccerRef = useRef(false);
+
+  const playWhistle = useCallback(() => {
+    if (!whistleRef.current) {
+      whistleRef.current = new Audio('/whistle.mp3');
+    }
+    const whistle = whistleRef.current;
+    whistle.volume = 0.4;
+    whistle.currentTime = 0;
+    whistle.play().catch(() => {});
+  }, []);
+
+  const scanInput = useCallback(
+    (value: string) => {
+      const hasSoccer = value.toLowerCase().includes('soccer');
+
+      if (hasSoccer) {
+        setRedCard(true);
+        const rawCorrection = value.replace(/soccer/gi, 'FOOTBALL');
+        setOutput(
+          `🤡 ERROR: DID YOU MEAN: "${rawCorrection.toUpperCase()} LIKE A CIVILIZED HUMAN BEING"? 🤡`,
+        );
+        if (!hadSoccerRef.current) {
+          playWhistle();
+        }
+      } else if (value.trim() === '') {
+        setRedCard(false);
+        setOutput('');
+      } else {
+        setRedCard(false);
+        setOutput('✅ STATUS: NO LINGUISTIC CRIMES DETECTED. CHILL.');
+      }
+
+      hadSoccerRef.current = hasSoccer;
+    },
+    [playWhistle],
+  );
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev.secs > 0) return { ...prev, secs: prev.secs - 1 };
-        return { ...prev, secs: 59, mins: prev.mins > 0 ? prev.mins - 1 : 59 };
-      });
+      setTimeRemaining(getTimeToYear3000());
     }, 1000);
     return () => clearInterval(timer);
   }, []);
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setInput(value);
+    scanInput(value);
+  };
+
   const handleTranslate = (e: React.FormEvent) => {
     e.preventDefault();
-    if (input.toLowerCase().includes('soccer')) {
-      setRedCard(true);
-      const rawCorrection = input.replace(/soccer/gi, 'FOOTBALL');
-      setOutput(
-        `🤡 ERROR: DID YOU MEAN: "${rawCorrection.toUpperCase()} LIKE A CIVILIZED HUMAN BEING"? 🤡`,
-      );
-    } else if (input.trim() === '') {
-      setRedCard(false);
-      setOutput('');
-    } else {
-      setRedCard(false);
-      setOutput('✅ STATUS: NO LINGUISTIC CRIMES DETECTED. CHILL.');
-    }
+    scanInput(input);
   };
 
   const handleGenerateApology = (e: React.FormEvent) => {
@@ -88,7 +125,7 @@ export default function MemeTheme() {
               <form onSubmit={handleTranslate} className="space-y-3">
                 <textarea
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={handleInputChange}
                   placeholder="Type a sentence... (Include 'soccer' to trigger security systems)"
                   className="min-h-[100px] w-full resize-none rounded-xl border border-zinc-800 bg-zinc-950 p-3 font-mono text-xs text-zinc-300 transition focus:border-emerald-500 focus:outline-none"
                 />
@@ -217,8 +254,7 @@ export default function MemeTheme() {
             </div>
           </div>
           <p className="text-[10px] font-black uppercase tracking-tighter text-zinc-600">
-            (Timer hardcoded to resolve near the launch interval threshold of
-            Year 3000)
+            Live countdown to the Year 3000 metric-system adoption threshold
           </p>
         </div>
 

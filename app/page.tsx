@@ -20,6 +20,9 @@ export default async function Home({ searchParams }: HomeProps) {
     if (variant === 'court') {
       return <CourtTheme />;
     }
+    if (variant === 'meme') {
+      return <MemeTheme />;
+    }
     return <MemeTheme />;
   };
 
