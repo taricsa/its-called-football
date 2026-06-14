@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import { themeFlag } from '@/flags';
 import MetricQuizModal from '@/components/blocker/MetricQuizModal';
 import CourtTheme from '@/components/court/CourtTheme';
+import MemeTheme from '@/components/meme/MemeTheme';
 
 type HomeProps = {
   searchParams: Promise<{ us?: string }>;
@@ -19,14 +20,7 @@ export default async function Home({ searchParams }: HomeProps) {
     if (variant === 'court') {
       return <CourtTheme />;
     }
-
-    return (
-      <div className="flex min-h-full items-center justify-center bg-zinc-950 p-8 text-white">
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-6 text-center font-bold">
-          ⚡ Meme Theme Active (Under Construction)
-        </div>
-      </div>
-    );
+    return <MemeTheme />;
   };
 
   if (isAmerican) {
