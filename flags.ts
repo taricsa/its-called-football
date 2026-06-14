@@ -1,11 +1,13 @@
 import { flag } from 'flags/next';
 import type { ThemeVariant } from '@/types/theme';
 
-export const themeVariantFlag = flag<ThemeVariant>({
+export const themeFlag = flag<ThemeVariant>({
   key: 'theme-variant',
-  description: 'A/B test: Court of Justice vs Meme theme layout',
-  options: ['court', 'meme'],
+  options: [
+    { value: 'court', label: 'Court of Justice Theme' },
+    { value: 'meme', label: 'Meme Chaos Theme' },
+  ],
   decide() {
-    return Math.random() < 0.5 ? 'court' : 'meme';
+    return Math.random() > 0.5 ? 'court' : 'meme';
   },
 });
