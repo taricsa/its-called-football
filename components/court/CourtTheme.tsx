@@ -4,9 +4,13 @@ import React, { useState } from 'react';
 import GlobalCounter from '@/components/shared/GlobalCounter';
 import TranslationMatrix from '@/components/shared/TranslationMatrix';
 
+const CLEAN_STATUS_MESSAGE =
+  'Status: Text clean. No etymological violations found.';
+
 export default function CourtTheme() {
   const [inputText, setInputText] = useState('');
-  const [rectifiedText, setRectifiedText] = useState('');
+  const [correctedText, setCorrectedText] = useState('');
+  const [statusMessage, setStatusMessage] = useState('');
   const [hasViolation, setHasViolation] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -21,16 +25,20 @@ export default function CourtTheme() {
 
     if (lowerText.includes('soccer')) {
       setHasViolation(true);
-      const corrected = inputText.replace(/soccer/gi, (match) =>
-        match === 'Soccer' ? 'Football (Association Football)' : 'football',
+      setStatusMessage('');
+      setCorrectedText(
+        inputText.replace(/soccer/gi, (match) =>
+          match === 'Soccer' ? 'Football (Association Football)' : 'football',
+        ),
       );
-      setRectifiedText(`"Did you mean: '${corrected}'?"`);
     } else if (inputText.trim() === '') {
       setHasViolation(false);
-      setRectifiedText('');
+      setCorrectedText('');
+      setStatusMessage('');
     } else {
       setHasViolation(false);
-      setRectifiedText('Status: Text clean. No etymological violations found.');
+      setCorrectedText('');
+      setStatusMessage(CLEAN_STATUS_MESSAGE);
     }
   };
 
@@ -74,7 +82,7 @@ export default function CourtTheme() {
                 <textarea
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
-                  placeholder="Paste statement here (e.g., 'I plan to watch soccer this weekend...')"
+                  placeholder="Paste statement here (e.g., I plan to watch soccer this weekend...)"
                   className="min-h-[100px] w-full resize-none rounded-lg border border-zinc-200 bg-stone-50/50 p-3 font-sans text-sm transition focus:border-zinc-500 focus:bg-white focus:outline-none"
                 />
                 <button
@@ -86,7 +94,7 @@ export default function CourtTheme() {
               </form>
             </div>
 
-            {rectifiedText && (
+            {(hasViolation || statusMessage) && (
               <div
                 className={`mt-4 rounded-lg border p-4 font-sans text-xs leading-relaxed ${
                   hasViolation
@@ -99,7 +107,13 @@ export default function CourtTheme() {
                     ⚠️ VIOLATION DETECTED: CODE 404 (PROHIBITED SLANG)
                   </span>
                 )}
-                {rectifiedText}
+                {hasViolation ? (
+                  <>
+                    Did you mean: &quot;{correctedText}&quot;?
+                  </>
+                ) : (
+                  statusMessage
+                )}
               </div>
             )}
           </div>
@@ -195,7 +209,12 @@ export default function CourtTheme() {
 
         <footer className="border-t border-zinc-300 pt-6 text-center">
           <a
-            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent("I have just signed the International Declaration of Football Accuracy. It is time to end the linguistic dark ages. Educate yourselves: ")}`}
+            href={
+              'https://twitter.com/intent/tweet?text=' +
+              encodeURIComponent(
+                'I have just signed the International Declaration of Football Accuracy. It is time to end the linguistic dark ages. Educate yourselves: ',
+              )
+            }
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-5 py-2.5 font-sans text-xs font-bold uppercase tracking-wider text-zinc-600 shadow-sm transition hover:text-zinc-900"

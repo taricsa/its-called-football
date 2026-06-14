@@ -3,22 +3,38 @@
 import React, { useState, useEffect } from 'react';
 import type { ThemeVariant } from '@/types/theme';
 
+const BASELINE = 4_512_384_921;
+const EPOCH_MS = new Date('2026-01-01T00:00:00Z').getTime();
+const RATE_PER_SECOND = 2.5;
+
+function computeSeedCount(now = Date.now()) {
+  const elapsedSeconds = Math.max(0, (now - EPOCH_MS) / 1000);
+  return BASELINE + Math.floor(elapsedSeconds * RATE_PER_SECOND);
+}
+
 type GlobalCounterProps = {
   variant: ThemeVariant;
 };
 
 export default function GlobalCounter({ variant }: GlobalCounterProps) {
-  const [count, setCount] = useState(4512384921);
+  const [count, setCount] = useState<number | null>(null);
 
   useEffect(() => {
+    setCount(computeSeedCount());
+
     const interval = setInterval(() => {
-      setCount((prev) => prev + Math.floor(Math.random() * 5) + 2);
+      setCount((prev) => {
+        if (prev === null) return computeSeedCount();
+        return prev + Math.floor(Math.random() * 5) + 2;
+      });
     }, 450);
 
     return () => clearInterval(interval);
   }, []);
 
-  const formattedCount = new Intl.NumberFormat('en-US').format(count);
+  const formattedCount = new Intl.NumberFormat('en-US').format(
+    count ?? BASELINE,
+  );
 
   if (variant === 'court') {
     return (
