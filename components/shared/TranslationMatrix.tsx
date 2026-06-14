@@ -39,6 +39,18 @@ const languages = [
     note: 'Beautiful game, beautiful math.',
   },
   {
+    lang: 'Portuguese-PT',
+    word: 'Futebol',
+    literal: 'Pé (Foot) + Bola (Ball)',
+    note: 'Iberian peninsula compliance. Exemplary.',
+  },
+  {
+    lang: 'Portuguese-BR',
+    word: 'Futebol',
+    literal: 'Pé (Foot) + Bola (Ball)',
+    note: 'Five World Cups of correct terminology.',
+  },
+  {
     lang: 'Italian',
     word: 'Calcio',
     literal: 'From calciare (To kick)',
@@ -135,7 +147,7 @@ export default function TranslationMatrix({ variant }: TranslationMatrixProps) {
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <span className="w-20 text-sm font-black text-zinc-400">
+                  <span className="min-w-28 shrink-0 text-sm font-black text-zinc-400">
                     {item.lang}
                   </span>
                   <span className="font-mono text-base font-bold text-emerald-400">
