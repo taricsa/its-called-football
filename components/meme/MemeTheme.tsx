@@ -4,6 +4,13 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import GlobalCounter from '@/components/shared/GlobalCounter';
 import TranslationMatrix from '@/components/shared/TranslationMatrix';
 
+const HAND_EGG_DICT: Record<string, string> = {
+  Touchdown: 'Unwarranted Commercial Advertisement Sequence',
+  Quarterback: 'Primary Hand-Egg Distributor',
+  'Halftime Show': 'The actual event people bought tickets for',
+  Football: 'Armored corporate handball played with a brown egg',
+};
+
 function getTimeToYear3000() {
   const target = new Date('3000-01-01T00:00:00Z').getTime();
   const diff = Math.max(0, target - Date.now());
@@ -27,6 +34,9 @@ export default function MemeTheme() {
   const [copied, setCopied] = useState(false);
 
   const [timeLeft, setTimeRemaining] = useState(getTimeToYear3000);
+
+  const [eggInput, setEggInput] = useState('');
+  const [eggOutput, setEggOutput] = useState('');
 
   const whistleRef = useRef<HTMLAudioElement | null>(null);
   const hadSoccerRef = useRef(false);
@@ -91,6 +101,26 @@ export default function MemeTheme() {
     setCopied(false);
     setGeneratedApology(
       `DEAR CITIZENS OF THE CIVILIZED WORLD,\n\nI, ${travelerName.toUpperCase()}, hereby issue an official apology for my country's linguistic crimes. I promise to control the ball using my actual feet, look at the actual pitch, and never refer to an armored commercial break advertisement sequence as "football" while traveling on your soil.\n\nSigned,\nA Repentant American`,
+    );
+  };
+
+  const handleEggTermClick = (term: string) => {
+    setEggInput(term);
+    setEggOutput(HAND_EGG_DICT[term]);
+  };
+
+  const handleEggTranslate = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = eggInput.trim();
+    const key = Object.keys(HAND_EGG_DICT).find(
+      (k) => k.toLowerCase() === trimmed.toLowerCase(),
+    );
+    setEggOutput(
+      key
+        ? HAND_EGG_DICT[key]
+        : trimmed
+          ? 'No translation on record. Term may be too absurd even for this system.'
+          : '',
     );
   };
 
@@ -223,6 +253,62 @@ export default function MemeTheme() {
               entering Europe or South America voids absolute physical alignment
               rules.
             </p>
+          </div>
+          <div className="md:col-span-2 rounded-2xl border-2 border-amber-500/40 bg-zinc-900 p-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                <h4 className="text-base font-black uppercase tracking-tight text-white">
+                  Hand-Egg Translation Terminal
+                </h4>
+                <span className="rounded bg-amber-500/10 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-400">
+                  EN-AMERICAN → FOOTBALL
+                </span>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {Object.keys(HAND_EGG_DICT).map((term) => (
+                  <button
+                    key={term}
+                    onClick={() => handleEggTermClick(term)}
+                    className={`rounded-lg border px-3 py-1.5 font-mono text-xs font-bold transition ${
+                      eggInput === term
+                        ? 'border-amber-500 bg-amber-500/20 text-amber-300'
+                        : 'border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 hover:text-amber-200'
+                    }`}
+                  >
+                    {term}
+                  </button>
+                ))}
+              </div>
+
+              <form onSubmit={handleEggTranslate} className="flex gap-2">
+                <input
+                  type="text"
+                  value={eggInput}
+                  onChange={(e) => {
+                    setEggInput(e.target.value);
+                    setEggOutput('');
+                  }}
+                  placeholder="Or type a gridiron term..."
+                  className="flex-1 rounded-xl border border-zinc-800 bg-zinc-950 p-3 font-mono text-xs text-white focus:border-amber-500 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  className="rounded-xl bg-amber-500 px-4 font-mono text-xs font-black uppercase text-zinc-950 transition hover:bg-amber-400"
+                >
+                  Translate
+                </button>
+              </form>
+
+              {eggOutput && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-4 font-mono text-xs font-bold leading-relaxed text-amber-300">
+                  <span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-amber-500">
+                    Official Football Translation:
+                  </span>
+                  {eggOutput}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

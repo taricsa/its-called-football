@@ -9,7 +9,6 @@ type MetricQuizModalProps = {
 };
 
 export default function MetricQuizModal({
-  variant,
   children,
 }: MetricQuizModalProps) {
   const [hasPassed, setHasPassed] = useState(false);

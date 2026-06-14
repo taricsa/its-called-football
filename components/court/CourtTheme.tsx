@@ -17,7 +17,9 @@ export default function CourtTheme() {
     name: '',
     country: 'United Kingdom',
   });
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submissionStatus, setSubmissionStatus] = useState<
+    'idle' | 'certified' | 'probation'
+  >('idle');
 
   const handleRectification = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +47,9 @@ export default function CourtTheme() {
   const handlePetitionSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.name.trim()) {
-      setIsSubmitted(true);
+      setSubmissionStatus(
+        formData.country === 'United Kingdom' ? 'probation' : 'certified',
+      );
     }
   };
 
@@ -130,7 +134,7 @@ export default function CourtTheme() {
                 </p>
               </div>
 
-              {!isSubmitted ? (
+              {submissionStatus === 'idle' ? (
                 <form
                   onSubmit={handlePetitionSubmit}
                   className="space-y-3 font-sans text-xs"
@@ -176,7 +180,7 @@ export default function CourtTheme() {
                     Affix Notarized Signature
                   </button>
                 </form>
-              ) : (
+              ) : submissionStatus === 'certified' ? (
                 <div className="animate-fade-in relative space-y-3 overflow-hidden rounded-lg border-2 border-dashed border-zinc-300 bg-stone-50/50 p-6 text-center">
                   <div className="absolute right-2 top-2 rotate-12 select-none rounded border border-emerald-600 px-2 py-0.5 font-sans text-[10px] font-black uppercase tracking-widest text-emerald-600">
                     CERTIFIED
@@ -193,6 +197,35 @@ export default function CourtTheme() {
                     . Your pledge of etymological alignment has been formally
                     written into the global archives.
                   </p>
+                </div>
+              ) : (
+                <div className="animate-fade-in relative space-y-3 overflow-hidden rounded-lg border-2 border-amber-300 bg-amber-50 p-6">
+                  <div className="absolute right-2 top-2 rotate-12 select-none rounded border border-amber-600 px-2 py-0.5 font-sans text-[10px] font-black uppercase tracking-widest text-amber-700">
+                    FLAGGED
+                  </div>
+                  <p className="text-xl">⚠️</p>
+                  <h5 className="font-bold uppercase tracking-wide text-amber-900">
+                    Application Flag: Ancestral Accountability Clause Triggered
+                  </h5>
+                  <p className="font-sans text-xs leading-relaxed text-amber-800">
+                    Your country invented the word &quot;soccer&quot; as
+                    19th-century university slang before abandoning it. Your
+                    signature has been accepted,{' '}
+                    <span className="font-serif font-bold text-amber-900">
+                      {formData.name}
+                    </span>
+                    , but your jurisdiction is hereby placed on{' '}
+                    <span className="font-black uppercase">
+                      Etymological Probation
+                    </span>
+                    .
+                  </p>
+                  <div className="mt-2 rounded border border-amber-200 bg-amber-100/60 p-3 font-sans text-[10px] leading-normal text-amber-700">
+                    STATUS: Provisional signatory. Full ratification pending
+                    linguistic remediation. The Court acknowledges your
+                    cooperation and notes it is, frankly, the least you could
+                    do.
+                  </div>
                 </div>
               )}
             </div>

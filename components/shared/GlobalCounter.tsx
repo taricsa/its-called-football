@@ -20,13 +20,12 @@ export default function GlobalCounter({ variant }: GlobalCounterProps) {
   const [count, setCount] = useState<number | null>(null);
 
   useEffect(() => {
-    setCount(computeSeedCount());
-
     const interval = setInterval(() => {
-      setCount((prev) => {
-        if (prev === null) return computeSeedCount();
-        return prev + Math.floor(Math.random() * 5) + 2;
-      });
+      setCount((prev) =>
+        prev === null
+          ? computeSeedCount()
+          : prev + Math.floor(Math.random() * 5) + 2,
+      );
     }, 450);
 
     return () => clearInterval(interval);
