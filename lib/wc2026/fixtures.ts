@@ -1,29 +1,53 @@
 import { getTeamsByGroup } from './teams';
 import type { FixturePair, GroupLetter } from './types';
 
+const GROUP_PAIRINGS: [number, number][] = [
+  [0, 1],
+  [0, 2],
+  [0, 3],
+  [1, 2],
+  [1, 3],
+  [2, 3],
+];
+
+let groupFixturesCache: FixturePair[] | null = null;
+
 export function getGroupFixtures(): FixturePair[] {
-  const fixtures: FixturePair[] = [];
+  if (!groupFixturesCache) {
+    const fixtures: FixturePair[] = [];
 
-  for (const [group, teams] of getTeamsByGroup()) {
-    const pairings: [number, number][] = [
-      [0, 1],
-      [0, 2],
-      [0, 3],
-      [1, 2],
-      [1, 3],
-      [2, 3],
-    ];
-
-    for (const [homeIndex, awayIndex] of pairings) {
-      fixtures.push({
-        homeTeamId: teams[homeIndex].id,
-        awayTeamId: teams[awayIndex].id,
-        group,
-      });
+    for (const [group, teams] of getTeamsByGroup()) {
+      for (const [homeIndex, awayIndex] of GROUP_PAIRINGS) {
+        fixtures.push({
+          homeTeamId: teams[homeIndex].id,
+          awayTeamId: teams[awayIndex].id,
+          group,
+        });
+      }
     }
+
+    groupFixturesCache = fixtures;
   }
 
-  return fixtures;
+  return groupFixturesCache;
+}
+
+let fixturesByGroupCache: Map<GroupLetter, FixturePair[]> | null = null;
+
+export function getFixturesByGroup(): Map<GroupLetter, FixturePair[]> {
+  if (!fixturesByGroupCache) {
+    const fixturesByGroup = new Map<GroupLetter, FixturePair[]>();
+
+    for (const fixture of getGroupFixtures()) {
+      const existing = fixturesByGroup.get(fixture.group) ?? [];
+      existing.push(fixture);
+      fixturesByGroup.set(fixture.group, existing);
+    }
+
+    fixturesByGroupCache = fixturesByGroup;
+  }
+
+  return fixturesByGroupCache;
 }
 
 export function getFixtureKey(homeTeamId: string, awayTeamId: string): string {

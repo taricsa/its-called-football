@@ -74,21 +74,23 @@ export function sampleGoals(
   outcome: MatchOutcome,
   random: () => number,
 ): { home: number; away: number } {
+  const base = Math.floor(random() * 3);
+
   switch (outcome) {
     case 'home_win':
       return {
-        home: 1 + Math.floor(random() * 3),
-        away: Math.floor(random() * 2),
+        home: base + 1,
+        away: Math.floor(random() * (base + 1)),
       };
     case 'away_win':
       return {
-        home: Math.floor(random() * 2),
-        away: 1 + Math.floor(random() * 3),
+        home: Math.floor(random() * (base + 1)),
+        away: base + 1,
       };
     case 'draw':
       return {
-        home: Math.floor(random() * 3),
-        away: Math.floor(random() * 3),
+        home: base,
+        away: base,
       };
   }
 }
