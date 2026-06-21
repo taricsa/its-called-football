@@ -12,7 +12,7 @@ A satirical Next.js site making the case that the game is called **football**, n
 - **Translation Matrix** — Etymological evidence from around the world (with a Japanese easter egg).
 - **Court theme** — Bureaucratic petition form, document rectification tool, and legal transcript styling.
 - **Meme theme** — Slang filter, American travel apology generator, and a countdown to the year 3000.
-- **WC2026 probabilities** — Live Monte Carlo win chances at `/wc2026`, refreshed from API-Football after every match via Vercel Cron.
+- **WC2026 probabilities** — Live Monte Carlo win chances at `/wc2026`, refreshed from API-Football (every ~2 min on page load; optional Vercel Cron on Pro).
 
 ## Tech Stack
 
@@ -43,9 +43,19 @@ For live WC2026 probabilities, add:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `API_FOOTBALL_KEY` | Production | API key from [api-football.com](https://www.api-football.com/) for live scores |
-| `CRON_SECRET` | Production | Auto-set by Vercel Cron; used to secure `/api/cron/wc2026-sync` |
+| `CRON_SECRET` | Optional | Secures `/api/cron/wc2026-sync` when using Vercel Cron or an external scheduler |
 
 Without `API_FOOTBALL_KEY`, `/wc2026` falls back to pre-tournament projections using static Elo ratings.
+
+#### Live update strategy
+
+On **all plans**, `/wc2026` fetches fresh scores from API-Football every ~2 minutes when the page is loaded (server-side cache).
+
+On **Vercel Hobby**, [cron jobs are limited to once per day](https://vercel.com/docs/cron-jobs/usage-and-pricing) — a `*/5 * * * *` schedule will fail deployment. No `vercel.json` cron is included by default.
+
+On **Vercel Pro**, rename `vercel.pro.example.json` to `vercel.json` to enable automatic polling every 5 minutes via Vercel Cron.
+
+Alternatively, point any external cron service (e.g. [cron-job.org](https://cron-job.org)) at `GET /api/cron/wc2026-sync` with `Authorization: Bearer $CRON_SECRET`.
 
 ### Install and run
 
@@ -97,7 +107,7 @@ types/theme.ts                      # ThemeVariant = 'court' | 'meme'
 1. Import the repository into [Vercel](https://vercel.com).
 2. Add `FLAGS_SECRET` as a sensitive environment variable for Preview and Production.
 3. Add `API_FOOTBALL_KEY` for live tournament updates on `/wc2026`.
-4. Deploy — the flags discovery endpoint at `/.well-known/vercel/flags` enables Toolbar integration automatically. Vercel Cron polls API-Football every 5 minutes during the tournament.
+4. Deploy — the flags discovery endpoint at `/.well-known/vercel/flags` enables Toolbar integration automatically. On Pro, add `vercel.json` from `vercel.pro.example.json` for hands-off cron polling.
 
 ## License
 

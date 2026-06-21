@@ -70,7 +70,7 @@ export default function Wc2026Page({ result, variant }: Wc2026PageProps) {
                 ? 'The Court recalculates after every final whistle — real results locked in, remaining fixtures simulated ten thousand times.'
                 : 'The Court has run ten thousand simulated tournaments to determine which nation most deserves to lift the trophy — adjusted for etymological compliance.'
               : result.mode === 'live'
-                ? 'Match ends → cron polls API-Football → we re-sim what\'s left. Real scores in, fake futures out.'
+                ? 'Match ends → we poll API-Football → re-sim what\'s left. Real scores in, fake futures out.'
                 : '10,000 sims. 48 teams. One trophy. Probabilities computed by Elo, not by ChatGPT having a guess.'}
           </p>
         </header>

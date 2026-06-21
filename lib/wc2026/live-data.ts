@@ -3,6 +3,7 @@ import { createEmptySnapshot, fetchTournamentSnapshot } from './api-football';
 import type { TournamentSnapshot } from './types';
 
 export const WC2026_CACHE_TAG = 'wc2026-live-data';
+export const WC2026_REVALIDATE_SECONDS = 120;
 
 async function loadTournamentSnapshot(): Promise<TournamentSnapshot> {
   try {
@@ -17,7 +18,7 @@ export const getLiveTournamentSnapshot = unstable_cache(
   loadTournamentSnapshot,
   ['wc2026-tournament-snapshot'],
   {
-    revalidate: 300,
+    revalidate: WC2026_REVALIDATE_SECONDS,
     tags: [WC2026_CACHE_TAG],
   },
 );

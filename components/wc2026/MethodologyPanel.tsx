@@ -47,9 +47,10 @@ export default function MethodologyPanel({ variant }: MethodologyPanelProps) {
           {isCourt ? (
             <>
               <p>
-                When live, a Vercel Cron job polls API-Football every five
-                minutes. Finished matches are applied as fixed results; only
-                remaining fixtures are simulated randomly.
+                When live, the page polls API-Football every ~2 minutes (or
+                every 5 minutes with Vercel Cron on a Pro plan). Finished
+                matches are applied as fixed results; only remaining fixtures
+                are simulated randomly.
               </p>
               <p>
                 Match outcomes derive from standard Elo win probabilities. Group
@@ -66,8 +67,9 @@ export default function MethodologyPanel({ variant }: MethodologyPanelProps) {
           ) : (
             <>
               <p>
-                Cron hits API-Football every 5 min. FT scores get baked in. We
-                only roll the dice on games still on the schedule.
+                Page load hits API-Football every ~2 min. FT scores get baked
+                in. We only roll the dice on games still on the schedule. (Pro
+                plan: add vercel.json for cron polling.)
               </p>
               <p>
                 Group stage: 12 groups of 4, round-robin, draws allowed. Knockout:
