@@ -26,6 +26,11 @@ function formatDelta(delta: number | undefined): string {
   }
 
   const points = delta * 100;
+
+  if (Math.abs(points) < 0.05) {
+    return '0.0%';
+  }
+
   const sign = points > 0 ? '+' : '';
   return `${sign}${points.toFixed(1)}%`;
 }

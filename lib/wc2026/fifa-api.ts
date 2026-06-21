@@ -52,7 +52,15 @@ type FifaCalendarResponse = {
 };
 
 function localizedText(values?: FifaLocalizedText[]): string {
-  return values?.[0]?.Description ?? '';
+  if (!values || values.length === 0) {
+    return '';
+  }
+
+  const english = values.find((value) =>
+    value.Locale?.toLowerCase().startsWith('en'),
+  );
+
+  return english?.Description ?? values[0].Description ?? '';
 }
 
 function mapFifaStatus(match: FifaMatch): MatchStatus {

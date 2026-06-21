@@ -3,7 +3,10 @@ import MetricQuizModal from '@/components/blocker/MetricQuizModal';
 import Wc2026Page from '@/components/wc2026/Wc2026Page';
 import { themeFlag } from '@/flags';
 import { attachBaselineComparison } from '@/lib/wc2026/compare';
-import { getLiveTournamentSnapshot } from '@/lib/wc2026/live-data';
+import {
+  getLiveTournamentSnapshot,
+  getPreTournamentBaseline,
+} from '@/lib/wc2026/live-data';
 import { runMonteCarlo } from '@/lib/wc2026/simulate';
 
 type Wc2026RouteProps = {
@@ -23,10 +26,7 @@ export default async function Wc2026Route({ searchParams }: Wc2026RouteProps) {
   const liveResult = runMonteCarlo(undefined, undefined, snapshot);
   const result =
     liveResult.mode === 'live'
-      ? attachBaselineComparison(
-          liveResult,
-          runMonteCarlo(undefined, undefined, null),
-        )
+      ? attachBaselineComparison(liveResult, await getPreTournamentBaseline())
       : liveResult;
 
   const content = <Wc2026Page result={result} variant={variant} />;
