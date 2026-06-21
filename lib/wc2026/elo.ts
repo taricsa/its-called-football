@@ -80,11 +80,11 @@ export function sampleGoals(
     case 'home_win':
       return {
         home: base + 1,
-        away: Math.min(base, Math.floor(random() * (base + 1))),
+        away: Math.floor(random() * (base + 1)),
       };
     case 'away_win':
       return {
-        home: Math.min(base, Math.floor(random() * (base + 1))),
+        home: Math.floor(random() * (base + 1)),
         away: base + 1,
       };
     case 'draw':

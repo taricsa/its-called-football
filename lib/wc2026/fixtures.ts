@@ -32,6 +32,24 @@ export function getGroupFixtures(): FixturePair[] {
   return groupFixturesCache;
 }
 
+let fixturesByGroupCache: Map<GroupLetter, FixturePair[]> | null = null;
+
+export function getFixturesByGroup(): Map<GroupLetter, FixturePair[]> {
+  if (!fixturesByGroupCache) {
+    const fixturesByGroup = new Map<GroupLetter, FixturePair[]>();
+
+    for (const fixture of getGroupFixtures()) {
+      const existing = fixturesByGroup.get(fixture.group) ?? [];
+      existing.push(fixture);
+      fixturesByGroup.set(fixture.group, existing);
+    }
+
+    fixturesByGroupCache = fixturesByGroup;
+  }
+
+  return fixturesByGroupCache;
+}
+
 export function getFixtureKey(homeTeamId: string, awayTeamId: string): string {
   return [homeTeamId, awayTeamId].sort().join(':');
 }
