@@ -33,7 +33,13 @@ export default function MemeTheme() {
   const [generatedApology, setGeneratedApology] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const [timeLeft, setTimeRemaining] = useState(getTimeToYear3000);
+  const [timeLeft, setTimeRemaining] = useState({
+    years: 0,
+    days: 0,
+    hours: 0,
+    mins: 0,
+    secs: 0,
+  });
 
   const [eggInput, setEggInput] = useState('');
   const [eggOutput, setEggOutput] = useState('');
@@ -78,6 +84,7 @@ export default function MemeTheme() {
   );
 
   useEffect(() => {
+    setTimeRemaining(getTimeToYear3000());
     const timer = setInterval(() => {
       setTimeRemaining(getTimeToYear3000());
     }, 1000);
@@ -344,7 +351,13 @@ export default function MemeTheme() {
           </p>
         </div>
 
-        <footer className="pt-4 text-center">
+        <footer className="space-y-4 pt-4 text-center">
+          <a
+            href="/wc2026"
+            className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-6 py-3 font-mono text-xs font-black uppercase text-emerald-400 shadow-xl transition hover:border-emerald-500/40 hover:text-emerald-300"
+          >
+            🏆 WC2026 WIN PROBABILITIES (REAL MATH)
+          </a>
           <a
             href={`https://twitter.com/intent/tweet?text=${encodeURIComponent('#ItsCalledFootball help protect an isolated American from etymological confusion today: ')}&url=${encodeURIComponent('https://itscalledfootball.vercel.app')}`}
             target="_blank"
