@@ -1,16 +1,36 @@
-'use client';
+import { headers } from 'next/headers';
+import { themeFlag } from '@/flags';
+import MetricQuizModal from '@/components/blocker/MetricQuizModal';
+import CourtTheme from '@/components/court/CourtTheme';
+import MemeTheme from '@/components/meme/MemeTheme';
 
-import { useState } from 'react';
-import type { ThemeVariant } from '@/types/theme';
+type HomeProps = {
+  searchParams: Promise<{ us?: string }>;
+};
 
-export default function Home() {
-  const [variant] = useState<ThemeVariant>('court');
+export default async function Home({ searchParams }: HomeProps) {
+  const headersList = await headers();
+  const country = headersList.get('x-vercel-ip-country');
+  const params = await searchParams;
 
-  return (
-    <div>
-      {variant === 'court'
-        ? 'Court of Justice theme active'
-        : 'Meme theme active'}
-    </div>
-  );
+  const isAmerican = country === 'US' || params.us === 'true';
+  const variant = await themeFlag();
+
+  const renderMainContent = () => {
+    if (variant === 'court') {
+      return <CourtTheme />;
+    }
+    if (variant === 'meme') {
+      return <MemeTheme />;
+    }
+    return <MemeTheme />;
+  };
+
+  if (isAmerican) {
+    return (
+      <MetricQuizModal variant={variant}>{renderMainContent()}</MetricQuizModal>
+    );
+  }
+
+  return renderMainContent();
 }
