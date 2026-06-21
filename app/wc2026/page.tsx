@@ -24,10 +24,16 @@ export default async function Wc2026Route({ searchParams }: Wc2026RouteProps) {
   const variant = await themeFlag();
   const snapshot = await getLiveTournamentSnapshot();
   const liveResult = runMonteCarlo(undefined, undefined, snapshot);
-  const result =
-    liveResult.mode === 'live'
-      ? attachBaselineComparison(liveResult, await getPreTournamentBaseline())
-      : liveResult;
+
+  let result = liveResult;
+  if (liveResult.mode === 'live') {
+    try {
+      const baseline = await getPreTournamentBaseline();
+      result = attachBaselineComparison(liveResult, baseline);
+    } catch (error) {
+      console.error('[wc2026] Failed to load pre-tournament baseline:', error);
+    }
+  }
 
   const content = <Wc2026Page result={result} variant={variant} />;
 

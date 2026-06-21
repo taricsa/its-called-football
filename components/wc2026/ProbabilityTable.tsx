@@ -194,11 +194,11 @@ export default function ProbabilityTable({
                     className={`${cellClass} font-bold ${
                       team.probabilityDelta === undefined
                         ? 'text-zinc-400'
-                        : team.probabilityDelta > 0.001
+                        : team.probabilityDelta >= 0.0005
                           ? isCourt
                             ? 'text-emerald-700'
                             : 'text-emerald-400'
-                          : team.probabilityDelta < -0.001
+                          : team.probabilityDelta <= -0.0005
                             ? isCourt
                               ? 'text-red-600'
                               : 'text-red-400'
