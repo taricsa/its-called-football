@@ -50,6 +50,8 @@ export type TeamProbability = {
   adjustments: SatiricalAdjustment[];
   wins: number;
   probability: number;
+  baselineProbability?: number;
+  probabilityDelta?: number;
   eliminated?: boolean;
 };
 
@@ -72,10 +74,11 @@ export type MatchRecord = {
 
 export type TournamentSnapshot = {
   fetchedAt: string;
-  source: 'api-football' | 'none';
+  source: 'fifa' | 'none';
   matches: MatchRecord[];
   finishedCount: number;
   liveCount: number;
+  warning?: string;
 };
 
 export type SimulationResult = {
@@ -84,6 +87,7 @@ export type SimulationResult = {
   totalProbability: number;
   snapshot: TournamentSnapshot | null;
   mode: 'live' | 'pre-tournament';
+  hasBaselineComparison?: boolean;
 };
 
 export type MatchOutcome = 'home_win' | 'draw' | 'away_win';

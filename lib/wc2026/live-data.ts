@@ -1,6 +1,9 @@
 import { unstable_cache } from 'next/cache';
-import { createEmptySnapshot, fetchTournamentSnapshot } from './api-football';
-import type { TournamentSnapshot } from './types';
+import { createEmptySnapshot, fetchTournamentSnapshot } from './fifa-api';
+import { runMonteCarlo } from './simulate';
+import type { SimulationResult, TournamentSnapshot } from './types';
+
+const BASELINE_REVALIDATE_SECONDS = 60 * 60 * 24 * 30;
 
 export const WC2026_CACHE_TAG = 'wc2026-live-data';
 export const WC2026_REVALIDATE_SECONDS = 120;
@@ -27,3 +30,10 @@ export async function syncLiveTournamentData(): Promise<TournamentSnapshot> {
   const snapshot = await loadTournamentSnapshot();
   return snapshot;
 }
+
+export const getPreTournamentBaseline = unstable_cache(
+  async (): Promise<SimulationResult> =>
+    runMonteCarlo(undefined, undefined, null),
+  ['wc2026-pre-tournament-baseline'],
+  { revalidate: BASELINE_REVALIDATE_SECONDS },
+);
