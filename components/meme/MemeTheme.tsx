@@ -33,7 +33,13 @@ export default function MemeTheme() {
   const [generatedApology, setGeneratedApology] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const [timeLeft, setTimeRemaining] = useState(getTimeToYear3000);
+  const [timeLeft, setTimeRemaining] = useState({
+    years: 0,
+    days: 0,
+    hours: 0,
+    mins: 0,
+    secs: 0,
+  });
 
   const [eggInput, setEggInput] = useState('');
   const [eggOutput, setEggOutput] = useState('');
@@ -78,6 +84,7 @@ export default function MemeTheme() {
   );
 
   useEffect(() => {
+    setTimeRemaining(getTimeToYear3000());
     const timer = setInterval(() => {
       setTimeRemaining(getTimeToYear3000());
     }, 1000);

@@ -130,7 +130,13 @@ export async function fetchTournamentSnapshot(): Promise<TournamentSnapshot> {
   }
 
   const payload = (await response.json()) as ApiFootballResponse;
-  const matches = payload.response
+  const responseList = Array.isArray(payload.response) ? payload.response : [];
+
+  if (responseList.length === 0 && payload.response !== undefined) {
+    console.warn('[wc2026] API-Football returned unexpected response shape');
+  }
+
+  const matches = responseList
     .map(normalizeFixture)
     .filter((match): match is MatchRecord => match !== null)
     .sort((a, b) => a.date.localeCompare(b.date));
