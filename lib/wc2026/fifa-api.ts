@@ -57,7 +57,7 @@ function localizedText(values?: FifaLocalizedText[]): string {
   }
 
   const english = values.find((value) =>
-    value.Locale?.toLowerCase().startsWith('en'),
+    value.Locale?.toLowerCase()?.startsWith('en'),
   );
 
   return english?.Description ?? values[0].Description ?? '';
@@ -169,8 +169,8 @@ export async function fetchTournamentSnapshot(): Promise<TournamentSnapshot> {
     );
   }
 
-  const payload = (await response.json()) as FifaCalendarResponse;
-  const responseList = Array.isArray(payload.Results) ? payload.Results : [];
+  const payload = (await response.json()) as FifaCalendarResponse | null;
+  const responseList = Array.isArray(payload?.Results) ? payload.Results : [];
 
   if (responseList.length === 0) {
     console.warn('[wc2026] FIFA API returned no matches');
