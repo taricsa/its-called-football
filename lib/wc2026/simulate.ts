@@ -17,6 +17,8 @@ import {
 } from './format';
 import { getTeamMap, getTeamsByGroup } from './teams';
 import type {
+  FixturePair,
+  GroupLetter,
   GroupStanding,
   MatchRecord,
   SimulationResult,
@@ -96,9 +98,7 @@ function applyMatchResult(
   away.points += 1;
 }
 
-function getMatchWinner(
-  match: MatchRecord,
-): string | null {
+function getMatchWinner(match: MatchRecord): string | null {
   if (
     match.homeGoals === null ||
     match.awayGoals === null ||
@@ -132,6 +132,32 @@ function buildFinishedMatchMap(
   }
 
   return finished;
+}
+
+function buildKnockoutRounds(
+  snapshot: TournamentSnapshot,
+): Map<number, MatchRecord[]> {
+  const knockoutMatches = snapshot.matches
+    .filter((match) => match.stage === 'knockout')
+    .sort((a, b) => {
+      const roundDiff = knockoutRoundOrder(a.round) - knockoutRoundOrder(b.round);
+      if (roundDiff !== 0) {
+        return roundDiff;
+      }
+
+      return a.date.localeCompare(b.date);
+    });
+
+  const rounds = new Map<number, MatchRecord[]>();
+
+  for (const match of knockoutMatches) {
+    const order = knockoutRoundOrder(match.round);
+    const existing = rounds.get(order) ?? [];
+    existing.push(match);
+    rounds.set(order, existing);
+  }
+
+  return rounds;
 }
 
 function findKnownChampion(snapshot: TournamentSnapshot): string | null {
@@ -175,13 +201,12 @@ function getEliminatedFromSnapshot(snapshot: TournamentSnapshot): Set<string> {
   return eliminated;
 }
 
-import type { GroupLetter } from './types';
-
 function countFinishedGroupMatches(
   group: GroupLetter,
   finishedMatches: Map<string, MatchRecord>,
+  groupFixtures: FixturePair[],
 ): number {
-  return getGroupFixtures().filter((fixture) => {
+  return groupFixtures.filter((fixture) => {
     if (fixture.group !== group) {
       return false;
     }
@@ -196,17 +221,19 @@ function simulateGroupStage(
   adjustedElos: Map<string, number>,
   random: () => number,
   finishedMatches: Map<string, MatchRecord>,
+  groupFixtures: FixturePair[],
 ): GroupStanding[] {
   const advancers: GroupStanding[] = [];
   const thirdPlaces: GroupStanding[] = [];
+  const teamsByGroup = getTeamsByGroup();
 
   for (const group of getAllGroups()) {
-    const groupTeams = getTeamsByGroup().get(group) ?? [];
+    const groupTeams = teamsByGroup.get(group) ?? [];
     const standings = new Map<string, GroupStanding>(
       groupTeams.map((team) => [team.id, createStanding(team)]),
     );
 
-    for (const fixture of getGroupFixtures().filter(
+    for (const fixture of groupFixtures.filter(
       (entry) => entry.group === group,
     )) {
       const key = getFixtureKey(fixture.homeTeamId, fixture.awayTeamId);
@@ -223,7 +250,7 @@ function simulateGroupStage(
         continue;
       }
 
-      if (countFinishedGroupMatches(group, finishedMatches) === 6) {
+      if (countFinishedGroupMatches(group, finishedMatches, groupFixtures) === 6) {
         continue;
       }
 
@@ -282,28 +309,9 @@ function simulateKnockoutFromSnapshot(
   advancers: string[],
   adjustedElos: Map<string, number>,
   random: () => number,
-  snapshot: TournamentSnapshot,
+  rounds: Map<number, MatchRecord[]>,
 ): string {
   const activeTeams = new Set(advancers);
-  const knockoutMatches = snapshot.matches
-    .filter((match) => match.stage === 'knockout')
-    .sort((a, b) => {
-      const roundDiff = knockoutRoundOrder(a.round) - knockoutRoundOrder(b.round);
-      if (roundDiff !== 0) {
-        return roundDiff;
-      }
-
-      return a.date.localeCompare(b.date);
-    });
-
-  const rounds = new Map<number, MatchRecord[]>();
-
-  for (const match of knockoutMatches) {
-    const order = knockoutRoundOrder(match.round);
-    const existing = rounds.get(order) ?? [];
-    existing.push(match);
-    rounds.set(order, existing);
-  }
 
   if (rounds.size === 0) {
     const standings = advancers.map((teamId) => ({
@@ -421,20 +429,24 @@ function simulateKnockoutFromSnapshot(
 function simulateTournament(
   adjustedElos: Map<string, number>,
   random: () => number,
-  snapshot?: TournamentSnapshot,
+  finishedMatches: Map<string, MatchRecord>,
+  groupFixtures: FixturePair[],
+  knockoutRounds: Map<number, MatchRecord[]>,
+  useLiveKnockout: boolean,
 ): string {
-  const finishedMatches = snapshot
-    ? buildFinishedMatchMap(snapshot)
-    : new Map<string, MatchRecord>();
+  const advancers = simulateGroupStage(
+    adjustedElos,
+    random,
+    finishedMatches,
+    groupFixtures,
+  );
 
-  const advancers = simulateGroupStage(adjustedElos, random, finishedMatches);
-
-  if (snapshot && snapshot.finishedCount > 0) {
+  if (useLiveKnockout) {
     return simulateKnockoutFromSnapshot(
       advancers.map((standing) => standing.teamId),
       adjustedElos,
       random,
-      snapshot,
+      knockoutRounds,
     );
   }
 
@@ -499,11 +511,23 @@ export function runMonteCarlo(
     teams.map((team) => [team.id, 0]),
   );
 
+  const finishedMatches = snapshot
+    ? buildFinishedMatchMap(snapshot)
+    : new Map<string, MatchRecord>();
+  const groupFixtures = getGroupFixtures();
+  const knockoutRounds = snapshot
+    ? buildKnockoutRounds(snapshot)
+    : new Map<number, MatchRecord[]>();
+  const useLiveKnockout = Boolean(snapshot && snapshot.finishedCount > 0);
+
   for (let i = 0; i < iterations; i += 1) {
     const championId = simulateTournament(
       adjustedElos,
       random,
-      snapshot ?? undefined,
+      finishedMatches,
+      groupFixtures,
+      knockoutRounds,
+      useLiveKnockout,
     );
 
     if (eliminated.has(championId)) {

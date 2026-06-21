@@ -123,18 +123,29 @@ export const WC2026_TEAMS: Team[] = [
   team('PAN', 'Panama', 'L', 1740, 'Fútbol. Canal connects oceans; name connects feet and ball.'),
 ];
 
-export function getTeamsByGroup(): Map<GroupLetter, Team[]> {
-  const groups = new Map<GroupLetter, Team[]>();
+let teamsByGroupCache: Map<GroupLetter, Team[]> | null = null;
+let teamMapCache: Map<string, Team> | null = null;
 
-  for (const wcTeam of WC2026_TEAMS) {
-    const existing = groups.get(wcTeam.group) ?? [];
-    existing.push(wcTeam);
-    groups.set(wcTeam.group, existing);
+export function getTeamsByGroup(): Map<GroupLetter, Team[]> {
+  if (!teamsByGroupCache) {
+    const groups = new Map<GroupLetter, Team[]>();
+
+    for (const wcTeam of WC2026_TEAMS) {
+      const existing = groups.get(wcTeam.group) ?? [];
+      existing.push(wcTeam);
+      groups.set(wcTeam.group, existing);
+    }
+
+    teamsByGroupCache = groups;
   }
 
-  return groups;
+  return teamsByGroupCache;
 }
 
 export function getTeamMap(): Map<string, Team> {
-  return new Map(WC2026_TEAMS.map((wcTeam) => [wcTeam.id, wcTeam]));
+  if (!teamMapCache) {
+    teamMapCache = new Map(WC2026_TEAMS.map((wcTeam) => [wcTeam.id, wcTeam]));
+  }
+
+  return teamMapCache;
 }
