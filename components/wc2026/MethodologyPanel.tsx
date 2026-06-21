@@ -47,8 +47,8 @@ export default function MethodologyPanel({ variant }: MethodologyPanelProps) {
           {isCourt ? (
             <>
               <p>
-                When live, the page polls API-Football every ~2 minutes (or
-                every 5 minutes with Vercel Cron on a Pro plan). Finished
+                When live, the page polls FIFA&apos;s public API every ~2 minutes
+                (or every 5 minutes with Vercel Cron on a Pro plan). Finished
                 matches are applied as fixed results; only remaining fixtures
                 are simulated randomly.
               </p>
@@ -67,9 +67,9 @@ export default function MethodologyPanel({ variant }: MethodologyPanelProps) {
           ) : (
             <>
               <p>
-                Page load hits API-Football every ~2 min. FT scores get baked
-                in. We only roll the dice on games still on the schedule. (Pro
-                plan: add vercel.json for cron polling.)
+                Page load hits FIFA every ~2 min. FT scores get baked in. We
+                only roll the dice on games still on the schedule. (Pro plan:
+                add vercel.json for cron polling.)
               </p>
               <p>
                 Group stage: 12 groups of 4, round-robin, draws allowed. Knockout:

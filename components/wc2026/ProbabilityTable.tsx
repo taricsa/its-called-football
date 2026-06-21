@@ -4,11 +4,12 @@ import { useMemo, useState } from 'react';
 import type { TeamProbability } from '@/lib/wc2026/types';
 import type { ThemeVariant } from '@/types/theme';
 
-type SortKey = 'probability' | 'name' | 'group' | 'elo';
+type SortKey = 'probability' | 'name' | 'group' | 'elo' | 'delta';
 
 type ProbabilityTableProps = {
   teams: TeamProbability[];
   variant: ThemeVariant;
+  showDelta?: boolean;
 };
 
 function formatPercent(probability: number): string {
@@ -19,9 +20,20 @@ function formatPercent(probability: number): string {
   return `${(probability * 100).toFixed(2)}%`;
 }
 
+function formatDelta(delta: number | undefined): string {
+  if (delta === undefined) {
+    return '—';
+  }
+
+  const points = delta * 100;
+  const sign = points > 0 ? '+' : '';
+  return `${sign}${points.toFixed(1)}%`;
+}
+
 export default function ProbabilityTable({
   teams,
   variant,
+  showDelta = false,
 }: ProbabilityTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('probability');
   const [sortAsc, setSortAsc] = useState(false);
@@ -45,6 +57,10 @@ export default function ProbabilityTable({
           break;
         case 'elo':
           comparison = a.adjustedElo - b.adjustedElo;
+          break;
+        case 'delta':
+          comparison =
+            (a.probabilityDelta ?? 0) - (b.probabilityDelta ?? 0);
           break;
       }
 
@@ -125,6 +141,14 @@ export default function ProbabilityTable({
               >
                 Win Prob.
               </th>
+              {showDelta && (
+                <th
+                  className={`${headerClass} ${sortButtonClass} px-3 py-3`}
+                  onClick={() => handleSort('delta')}
+                >
+                  Δ since kickoff
+                </th>
+              )}
               <th className={`${headerClass} px-3 py-3`}>Linguistic Verdict</th>
             </tr>
           </thead>
@@ -160,6 +184,25 @@ export default function ProbabilityTable({
                 >
                   {team.eliminated ? '0.0%' : formatPercent(team.probability)}
                 </td>
+                {showDelta && (
+                  <td
+                    className={`${cellClass} font-bold ${
+                      team.probabilityDelta === undefined
+                        ? 'text-zinc-400'
+                        : team.probabilityDelta > 0.001
+                          ? isCourt
+                            ? 'text-emerald-700'
+                            : 'text-emerald-400'
+                          : team.probabilityDelta < -0.001
+                            ? isCourt
+                              ? 'text-red-600'
+                              : 'text-red-400'
+                            : 'text-zinc-400'
+                    }`}
+                  >
+                    {formatDelta(team.probabilityDelta)}
+                  </td>
+                )}
                 <td
                   className={`${cellClass} max-w-xs text-[11px] leading-relaxed text-zinc-500`}
                 >

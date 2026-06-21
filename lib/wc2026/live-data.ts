@@ -1,5 +1,5 @@
 import { unstable_cache } from 'next/cache';
-import { createEmptySnapshot, fetchTournamentSnapshot } from './api-football';
+import { createEmptySnapshot, fetchTournamentSnapshot } from './fifa-api';
 import type { TournamentSnapshot } from './types';
 
 export const WC2026_CACHE_TAG = 'wc2026-live-data';

@@ -19,14 +19,15 @@ export default function SimulationDisclaimer({
   variant,
 }: SimulationDisclaimerProps) {
   const isCourt = variant === 'court';
-  const { snapshot, mode, iterations } = result;
+  const { snapshot, mode, iterations, hasBaselineComparison } = result;
 
-  const liveSummary =
-    snapshot && snapshot.source === 'api-football'
+  const liveSummary = snapshot?.warning
+    ? `FIFA: ${snapshot.warning}`
+    : snapshot && snapshot.source === 'fifa'
       ? `${snapshot.finishedCount} matches finished${
           snapshot.liveCount > 0 ? `, ${snapshot.liveCount} live` : ''
         }. Last synced ${formatSyncTime(snapshot.fetchedAt)} UTC.`
-      : 'Live API not configured — showing pre-tournament projections.';
+      : 'Live scores unavailable — showing pre-tournament projections.';
 
   return (
     <div
@@ -44,6 +45,8 @@ export default function SimulationDisclaimer({
           Based on {iterations.toLocaleString()} simulated completions of the
           remaining tournament schedule, incorporating real results where
           available. {liveSummary}
+          {hasBaselineComparison &&
+            ' Δ column shows change vs pre-tournament baseline (same 10k sims, no results locked in).'}
         </>
       ) : (
         <>
@@ -52,6 +55,8 @@ export default function SimulationDisclaimer({
           </strong>{' '}
           {iterations.toLocaleString()} sims of what&apos;s left. Finished
           games are locked in; the rest is Elo chaos. {liveSummary}
+          {hasBaselineComparison &&
+            ' Δ = live minus pre-tournament baseline.'}
         </>
       )}
     </div>
