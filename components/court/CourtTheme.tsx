@@ -240,7 +240,13 @@ export default function CourtTheme() {
 
         <TranslationMatrix variant="court" />
 
-        <footer className="border-t border-zinc-300 pt-6 text-center">
+        <footer className="space-y-4 border-t border-zinc-300 pt-6 text-center">
+          <a
+            href="/wc2026"
+            className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-stone-50 px-5 py-2.5 font-sans text-xs font-bold uppercase tracking-wider text-zinc-500 shadow-sm transition hover:text-zinc-900"
+          >
+            ⚽ 2026 World Cup Probabilities — as decreed by math
+          </a>
           <a
             href={
               'https://twitter.com/intent/tweet?text=' +

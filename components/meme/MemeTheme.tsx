@@ -344,7 +344,13 @@ export default function MemeTheme() {
           </p>
         </div>
 
-        <footer className="pt-4 text-center">
+        <footer className="space-y-4 pt-4 text-center">
+          <a
+            href="/wc2026"
+            className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-6 py-3 font-mono text-xs font-black uppercase text-emerald-400 shadow-xl transition hover:border-emerald-500/40 hover:text-emerald-300"
+          >
+            🏆 WC2026 WIN PROBABILITIES (REAL MATH)
+          </a>
           <a
             href={`https://twitter.com/intent/tweet?text=${encodeURIComponent('#ItsCalledFootball help protect an isolated American from etymological confusion today: ')}&url=${encodeURIComponent('https://itscalledfootball.vercel.app')}`}
             target="_blank"

@@ -12,6 +12,7 @@ A satirical Next.js site making the case that the game is called **football**, n
 - **Translation Matrix** — Etymological evidence from around the world (with a Japanese easter egg).
 - **Court theme** — Bureaucratic petition form, document rectification tool, and legal transcript styling.
 - **Meme theme** — Slang filter, American travel apology generator, and a countdown to the year 3000.
+- **WC2026 probabilities** — Live Monte Carlo win chances at `/wc2026`, refreshed from API-Football after every match via Vercel Cron.
 
 ## Tech Stack
 
@@ -37,6 +38,15 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 
 This secret is required for the Flags SDK to evaluate flags and support Vercel Toolbar overrides. Use a separate value per environment (development, preview, production) when deploying.
 
+For live WC2026 probabilities, add:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `API_FOOTBALL_KEY` | Production | API key from [api-football.com](https://www.api-football.com/) for live scores |
+| `CRON_SECRET` | Production | Auto-set by Vercel Cron; used to secure `/api/cron/wc2026-sync` |
+
+Without `API_FOOTBALL_KEY`, `/wc2026` falls back to pre-tournament projections using static Elo ratings.
+
 ### Install and run
 
 ```bash
@@ -52,6 +62,8 @@ Open [http://localhost:3000](http://localhost:3000). You will land in either the
 |-----|--------|
 | `http://localhost:3000` | Normal visit; court or meme via flag |
 | `http://localhost:3000?us=true` | Simulates US geo-block; triggers metric quiz lockout |
+| `http://localhost:3000/wc2026` | World Cup 2026 win probabilities |
+| `http://localhost:3000/api/cron/wc2026-sync` | Manual sync trigger (dev only without `CRON_SECRET`) |
 
 Use the **Vercel Toolbar Flags Explorer** (on preview/production deployments) to override `theme-variant` between `court` and `meme` without redeploying.
 
@@ -84,7 +96,8 @@ types/theme.ts                      # ThemeVariant = 'court' | 'meme'
 
 1. Import the repository into [Vercel](https://vercel.com).
 2. Add `FLAGS_SECRET` as a sensitive environment variable for Preview and Production.
-3. Deploy — the flags discovery endpoint at `/.well-known/vercel/flags` enables Toolbar integration automatically.
+3. Add `API_FOOTBALL_KEY` for live tournament updates on `/wc2026`.
+4. Deploy — the flags discovery endpoint at `/.well-known/vercel/flags` enables Toolbar integration automatically. Vercel Cron polls API-Football every 5 minutes during the tournament.
 
 ## License
 
