@@ -108,3 +108,49 @@ export function seedKnockoutTeams(advancers: GroupStanding[]): string[] {
 export function getAllGroups(): GroupLetter[] {
   return GROUPS;
 }
+
+type BracketEntry = { teamId: string; group: GroupLetter };
+
+function shuffle<T>(arr: T[], random: () => number): T[] {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+export function buildBracketPairs(
+  advancers: GroupStanding[],
+  random: () => number,
+): [string, string][] {
+  const entries: BracketEntry[] = advancers.map((standing) => ({
+    teamId: standing.teamId,
+    group: standing.group,
+  }));
+
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    const shuffled = shuffle(entries, random);
+    const pairs: [string, string][] = [];
+    let ok = true;
+
+    for (let i = 0; i < shuffled.length; i += 2) {
+      if (shuffled[i].group === shuffled[i + 1].group) {
+        ok = false;
+        break;
+      }
+      pairs.push([shuffled[i].teamId, shuffled[i + 1].teamId]);
+    }
+
+    if (ok) {
+      return pairs;
+    }
+  }
+
+  const seeded = seedKnockoutTeams(advancers);
+  const pairs: [string, string][] = [];
+  for (let i = 0; i < seeded.length; i += 2) {
+    pairs.push([seeded[i], seeded[i + 1]]);
+  }
+  return pairs;
+}

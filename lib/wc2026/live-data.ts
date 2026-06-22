@@ -33,7 +33,7 @@ export async function syncLiveTournamentData(): Promise<TournamentSnapshot> {
 
 export const getPreTournamentBaseline = unstable_cache(
   async (): Promise<SimulationResult> =>
-    runMonteCarlo(undefined, undefined, null),
+    runMonteCarlo(undefined, undefined, 'serious', null),
   ['wc2026-pre-tournament-baseline'],
   { revalidate: BASELINE_REVALIDATE_SECONDS },
 );

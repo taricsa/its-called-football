@@ -1,32 +1,57 @@
 import {
-  getAdjustedElo,
+  getDisplayElo,
+  getMatchElo,
   sampleGoals,
   sampleGroupMatch,
   sampleKnockoutWinner,
 } from './elo';
 import {
+  buildBracketPairs,
+  getAllGroups,
+  rankGroupStandings,
+  selectAdvancingThirdPlaces,
+} from './format';
+import {
   getFixtureKey,
   getFixturesByGroup,
   knockoutRoundOrder,
 } from './fixtures';
-import {
-  getAllGroups,
-  rankGroupStandings,
-  seedKnockoutTeams,
-  selectAdvancingThirdPlaces,
-} from './format';
 import { getTeamMap, getTeamsByGroup } from './teams';
 import type {
   GroupStanding,
   MatchRecord,
+  SimulationMode,
   SimulationResult,
+  StageCounts,
+  StageKey,
   Team,
   TeamProbability,
   TournamentSnapshot,
 } from './types';
 
 const DEFAULT_ITERATIONS = 10_000;
-const DEFAULT_SEED = 'wc2026-linguistic-justice';
+const SERIOUS_SEED = 'wc2026-serious';
+const SATIRICAL_SEED = 'wc2026-linguistic-justice';
+
+const STAGE_KEYS: StageKey[] = [
+  'r32',
+  'r16',
+  'qf',
+  'sf',
+  'final',
+  'champion',
+];
+
+function createEmptyStageCounts(): StageCounts {
+  return {
+    r32: 0,
+    r16: 0,
+    qf: 0,
+    sf: 0,
+    final: 0,
+    champion: 0,
+  };
+}
 
 function createSeededRandom(seed: string): () => number {
   let state = 0;
@@ -42,6 +67,10 @@ function createSeededRandom(seed: string): () => number {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+function getSeedForMode(mode: SimulationMode): string {
+  return mode === 'satirical' ? SATIRICAL_SEED : SERIOUS_SEED;
 }
 
 function createStanding(team: Team): GroupStanding {
@@ -199,8 +228,46 @@ function getEliminatedFromSnapshot(snapshot: TournamentSnapshot): Set<string> {
   return eliminated;
 }
 
+function buildMatchElos(
+  teams: Team[],
+  mode: SimulationMode,
+): Map<string, { group: number; knockout: number }> {
+  return new Map(
+    teams.map((team) => [
+      team.id,
+      {
+        group: getMatchElo(team, mode, 'group'),
+        knockout: getMatchElo(team, mode, 'knockout'),
+      },
+    ]),
+  );
+}
+
+function recordStageReached(
+  stageReached: Map<string, number>,
+  teamId: string,
+  stageIdx: number,
+): void {
+  const current = stageReached.get(teamId) ?? 0;
+  if (stageIdx > current) {
+    stageReached.set(teamId, stageIdx);
+  }
+}
+
+function accumulateStageCounts(
+  counts: Map<string, StageCounts>,
+  teamId: string,
+  stageIdx: number,
+): void {
+  const teamCounts = counts.get(teamId)!;
+  for (let s = 1; s <= stageIdx; s += 1) {
+    teamCounts[STAGE_KEYS[s - 1]] += 1;
+  }
+}
+
 function simulateGroupStage(
-  adjustedElos: Map<string, number>,
+  matchElos: Map<string, { group: number; knockout: number }>,
+  mode: SimulationMode,
   random: () => number,
   finishedMatches: Map<string, MatchRecord>,
   fixturesByGroup: ReturnType<typeof getFixturesByGroup>,
@@ -233,9 +300,10 @@ function simulateGroupStage(
       const home = fixture.homeTeamId;
       const away = fixture.awayTeamId;
       const outcome = sampleGroupMatch(
-        adjustedElos.get(home)!,
-        adjustedElos.get(away)!,
+        matchElos.get(home)!.group,
+        matchElos.get(away)!.group,
         random,
+        mode,
       );
       const goals = sampleGoals(outcome, random);
       applyMatchResult(standings, home, away, goals.home, goals.away);
@@ -256,38 +324,72 @@ function simulateGroupStage(
 
 function simulateKnockoutRound(
   advancers: GroupStanding[],
-  adjustedElos: Map<string, number>,
+  matchElos: Map<string, { group: number; knockout: number }>,
   random: () => number,
-): string {
-  let teams = seedKnockoutTeams(advancers);
+): { championId: string; stageReached: Map<string, number> } {
+  const stageReached = new Map<string, number>();
 
-  while (teams.length > 1) {
-    const nextRound: string[] = [];
-
-    for (let i = 0; i < teams.length; i += 2) {
-      const teamA = teams[i];
-      const teamB = teams[i + 1];
-      const winner = sampleKnockoutWinner(
-        adjustedElos.get(teamA)!,
-        adjustedElos.get(teamB)!,
-        random,
-      );
-      nextRound.push(winner === 'A' ? teamA : teamB);
-    }
-
-    teams = nextRound;
+  for (const advancer of advancers) {
+    recordStageReached(stageReached, advancer.teamId, 1);
   }
 
-  return teams[0];
+  const initialPairs = buildBracketPairs(advancers, random);
+  let currentRoundWinners = initialPairs.map(([idA, idB]) => {
+    const winner = sampleKnockoutWinner(
+      matchElos.get(idA)!.knockout,
+      matchElos.get(idB)!.knockout,
+      random,
+    );
+    const winnerId = winner === 'A' ? idA : idB;
+    recordStageReached(stageReached, winnerId, 2);
+    return winnerId;
+  });
+
+  let stageIdx = 2;
+  while (currentRoundWinners.length > 1) {
+    const nextRoundWinners: string[] = [];
+    stageIdx += 1;
+
+    for (let i = 0; i < currentRoundWinners.length; i += 2) {
+      const teamAId = currentRoundWinners[i];
+      const teamBId = currentRoundWinners[i + 1];
+      const winner = sampleKnockoutWinner(
+        matchElos.get(teamAId)!.knockout,
+        matchElos.get(teamBId)!.knockout,
+        random,
+      );
+      const winnerId = winner === 'A' ? teamAId : teamBId;
+      nextRoundWinners.push(winnerId);
+      recordStageReached(stageReached, winnerId, stageIdx);
+    }
+
+    currentRoundWinners = nextRoundWinners;
+  }
+
+  const championId = currentRoundWinners[0];
+  recordStageReached(stageReached, championId, STAGE_KEYS.length);
+  return { championId, stageReached };
+}
+
+function knockoutOrderToStageIdx(order: number): number {
+  if (order <= 0 || order > 5) {
+    return order;
+  }
+  return order;
 }
 
 function simulateKnockoutFromSnapshot(
   advancers: string[],
-  adjustedElos: Map<string, number>,
+  matchElos: Map<string, { group: number; knockout: number }>,
   random: () => number,
   rounds: Map<number, MatchRecord[]>,
-): string {
+): { championId: string; stageReached: Map<string, number> } {
+  const stageReached = new Map<string, number>();
   const activeTeams = new Set(advancers);
+
+  for (const teamId of advancers) {
+    recordStageReached(stageReached, teamId, 1);
+  }
 
   if (rounds.size === 0) {
     const standings = advancers.map((teamId) => ({
@@ -303,11 +405,12 @@ function simulateKnockoutFromSnapshot(
       group: getTeamMap().get(teamId)!.group,
     }));
 
-    return simulateKnockoutRound(standings, adjustedElos, random);
+    return simulateKnockoutRound(standings, matchElos, random);
   }
 
   for (const order of [...rounds.keys()].sort((a, b) => a - b)) {
     const roundMatches = rounds.get(order)!;
+    const stageIdx = knockoutOrderToStageIdx(order) + 1;
 
     for (const match of roundMatches) {
       if (
@@ -326,6 +429,7 @@ function simulateKnockoutFromSnapshot(
         const loser =
           winner === match.homeTeamId ? match.awayTeamId : match.homeTeamId;
         activeTeams.delete(loser);
+        recordStageReached(stageReached, winner, stageIdx);
         continue;
       }
 
@@ -337,8 +441,8 @@ function simulateKnockoutFromSnapshot(
       }
 
       const winner = sampleKnockoutWinner(
-        adjustedElos.get(match.homeTeamId)!,
-        adjustedElos.get(match.awayTeamId)!,
+        matchElos.get(match.homeTeamId)!.knockout,
+        matchElos.get(match.awayTeamId)!.knockout,
         random,
       );
       const winnerId =
@@ -346,35 +450,36 @@ function simulateKnockoutFromSnapshot(
       const loserId =
         winner === 'A' ? match.awayTeamId : match.homeTeamId;
       activeTeams.delete(loserId);
+      recordStageReached(stageReached, winnerId, stageIdx);
 
       if (order === knockoutRoundOrder('Final')) {
-        return winnerId;
+        recordStageReached(stageReached, winnerId, STAGE_KEYS.length);
+        return { championId: winnerId, stageReached };
       }
     }
   }
 
   const survivors = [...activeTeams];
   if (survivors.length === 1) {
-    return survivors[0];
+    recordStageReached(stageReached, survivors[0], STAGE_KEYS.length);
+    return { championId: survivors[0], stageReached };
   }
 
   if (survivors.length === 0) {
-    return simulateKnockoutRound(
-      advancers.map((teamId) => ({
-        teamId,
-        played: 3,
-        won: 1,
-        drawn: 0,
-        lost: 0,
-        goalsFor: 1,
-        goalsAgainst: 0,
-        points: 3,
-        position: 1 as const,
-        group: getTeamMap().get(teamId)!.group,
-      })),
-      adjustedElos,
-      random,
-    );
+    const standings = advancers.map((teamId) => ({
+      teamId,
+      played: 3,
+      won: 1,
+      drawn: 0,
+      lost: 0,
+      goalsFor: 1,
+      goalsAgainst: 0,
+      points: 3,
+      position: 1 as const,
+      group: getTeamMap().get(teamId)!.group,
+    }));
+
+    return simulateKnockoutRound(standings, matchElos, random);
   }
 
   while (survivors.length > 1) {
@@ -389,8 +494,8 @@ function simulateKnockoutFromSnapshot(
       const teamA = survivors[i];
       const teamB = survivors[i + 1];
       const winner = sampleKnockoutWinner(
-        adjustedElos.get(teamA)!,
-        adjustedElos.get(teamB)!,
+        matchElos.get(teamA)!.knockout,
+        matchElos.get(teamB)!.knockout,
         random,
       );
       nextRound.push(winner === 'A' ? teamA : teamB);
@@ -399,19 +504,22 @@ function simulateKnockoutFromSnapshot(
     survivors.splice(0, survivors.length, ...nextRound);
   }
 
-  return survivors[0];
+  recordStageReached(stageReached, survivors[0], STAGE_KEYS.length);
+  return { championId: survivors[0], stageReached };
 }
 
 function simulateTournament(
-  adjustedElos: Map<string, number>,
+  matchElos: Map<string, { group: number; knockout: number }>,
+  mode: SimulationMode,
   random: () => number,
   finishedMatches: Map<string, MatchRecord>,
   fixturesByGroup: ReturnType<typeof getFixturesByGroup>,
   knockoutRounds: Map<number, MatchRecord[]>,
   useLiveKnockout: boolean,
-): string {
+): { championId: string; stageReached: Map<string, number> } {
   const advancers = simulateGroupStage(
-    adjustedElos,
+    matchElos,
+    mode,
     random,
     finishedMatches,
     fixturesByGroup,
@@ -420,26 +528,24 @@ function simulateTournament(
   if (useLiveKnockout) {
     return simulateKnockoutFromSnapshot(
       advancers.map((standing) => standing.teamId),
-      adjustedElos,
+      matchElos,
       random,
       knockoutRounds,
     );
   }
 
-  return simulateKnockoutRound(advancers, adjustedElos, random);
+  return simulateKnockoutRound(advancers, matchElos, random);
 }
 
 function buildChampionResult(
   championId: string,
   iterations: number,
+  simulationMode: SimulationMode,
   snapshot: TournamentSnapshot | null,
   eliminated: Set<string>,
 ): SimulationResult {
   const teamMap = getTeamMap();
   const teams = [...teamMap.values()];
-  const adjustedElos = new Map(
-    teams.map((team) => [team.id, getAdjustedElo(team)]),
-  );
 
   const teamProbabilities: TeamProbability[] = teams
     .map((team) => ({
@@ -447,12 +553,17 @@ function buildChampionResult(
       name: team.name,
       group: team.group,
       baseElo: team.baseElo,
-      adjustedElo: adjustedElos.get(team.id)!,
+      adjustedElo: getDisplayElo(team, simulationMode),
       satiricalNote: team.satiricalNote,
       adjustments: team.adjustments,
       wins: team.id === championId ? iterations : 0,
       probability: team.id === championId ? 1 : 0,
-      eliminated: team.id !== championId,
+      r32: team.id === championId ? 1 : 0,
+      r16: team.id === championId ? 1 : 0,
+      qf: team.id === championId ? 1 : 0,
+      sf: team.id === championId ? 1 : 0,
+      final: team.id === championId ? 1 : 0,
+      eliminated: eliminated.has(team.id) && team.id !== championId,
     }))
     .sort((a, b) => b.probability - a.probability);
 
@@ -462,26 +573,78 @@ function buildChampionResult(
     totalProbability: 1,
     snapshot,
     mode: snapshot && snapshot.finishedCount > 0 ? 'live' : 'pre-tournament',
+    simulationMode,
   };
+}
+
+function buildTeamProbabilities(
+  teams: Team[],
+  stageCounts: Map<string, StageCounts>,
+  winCounts: Map<string, number>,
+  iterations: number,
+  totalWins: number,
+  simulationMode: SimulationMode,
+  eliminated: Set<string>,
+): TeamProbability[] {
+  const effectiveIterations = totalWins > 0 ? totalWins : iterations;
+
+  return teams
+    .map((team) => {
+      const wins = winCounts.get(team.id) ?? 0;
+      const counts = stageCounts.get(team.id)!;
+      const isEliminated = eliminated.has(team.id);
+
+      return {
+        teamId: team.id,
+        name: team.name,
+        group: team.group,
+        baseElo: team.baseElo,
+        adjustedElo: getDisplayElo(team, simulationMode),
+        satiricalNote: team.satiricalNote,
+        adjustments: team.adjustments,
+        wins,
+        probability: isEliminated
+          ? 0
+          : totalWins > 0
+            ? wins / totalWins
+            : wins / effectiveIterations,
+        r32: isEliminated ? 0 : counts.r32 / effectiveIterations,
+        r16: isEliminated ? 0 : counts.r16 / effectiveIterations,
+        qf: isEliminated ? 0 : counts.qf / effectiveIterations,
+        sf: isEliminated ? 0 : counts.sf / effectiveIterations,
+        final: isEliminated ? 0 : counts.final / effectiveIterations,
+        eliminated: isEliminated,
+      };
+    })
+    .sort((a, b) => b.probability - a.probability);
 }
 
 export function runMonteCarlo(
   iterations = DEFAULT_ITERATIONS,
-  seed = DEFAULT_SEED,
+  seed?: string,
+  simulationMode: SimulationMode = 'serious',
   snapshot?: TournamentSnapshot | null,
 ): SimulationResult {
+  const resolvedSeed = seed ?? getSeedForMode(simulationMode);
   const knownChampion = snapshot ? findKnownChampion(snapshot) : null;
   const eliminated = snapshot ? getEliminatedFromSnapshot(snapshot) : new Set<string>();
 
   if (knownChampion) {
-    return buildChampionResult(knownChampion, iterations, snapshot ?? null, eliminated);
+    return buildChampionResult(
+      knownChampion,
+      iterations,
+      simulationMode,
+      snapshot ?? null,
+      eliminated,
+    );
   }
 
-  const random = createSeededRandom(seed);
+  const random = createSeededRandom(resolvedSeed);
   const teamMap = getTeamMap();
   const teams = [...teamMap.values()];
-  const adjustedElos = new Map(
-    teams.map((team) => [team.id, getAdjustedElo(team)]),
+  const matchElos = buildMatchElos(teams, simulationMode);
+  const stageCounts = new Map<string, StageCounts>(
+    teams.map((team) => [team.id, createEmptyStageCounts()]),
   );
   const winCounts = new Map<string, number>(
     teams.map((team) => [team.id, 0]),
@@ -497,8 +660,9 @@ export function runMonteCarlo(
   const useLiveKnockout = Boolean(snapshot && snapshot.finishedCount > 0);
 
   for (let i = 0; i < iterations; i += 1) {
-    const championId = simulateTournament(
-      adjustedElos,
+    const { championId, stageReached } = simulateTournament(
+      matchElos,
+      simulationMode,
       random,
       finishedMatches,
       fixturesByGroup,
@@ -511,28 +675,23 @@ export function runMonteCarlo(
     }
 
     winCounts.set(championId, (winCounts.get(championId) ?? 0) + 1);
+
+    for (const [teamId, stageIdx] of stageReached) {
+      accumulateStageCounts(stageCounts, teamId, stageIdx);
+    }
   }
 
   const totalWins = [...winCounts.values()].reduce((sum, wins) => sum + wins, 0);
-  const effectiveIterations = totalWins > 0 ? totalWins : iterations;
 
-  const teamProbabilities: TeamProbability[] = teams
-    .map((team) => {
-      const wins = winCounts.get(team.id) ?? 0;
-      return {
-        teamId: team.id,
-        name: team.name,
-        group: team.group,
-        baseElo: team.baseElo,
-        adjustedElo: adjustedElos.get(team.id)!,
-        satiricalNote: team.satiricalNote,
-        adjustments: team.adjustments,
-        wins,
-        probability: totalWins > 0 ? wins / totalWins : wins / effectiveIterations,
-        eliminated: eliminated.has(team.id),
-      };
-    })
-    .sort((a, b) => b.probability - a.probability);
+  const teamProbabilities = buildTeamProbabilities(
+    teams,
+    stageCounts,
+    winCounts,
+    iterations,
+    totalWins,
+    simulationMode,
+    eliminated,
+  );
 
   const totalProbability = teamProbabilities.reduce(
     (sum, team) => sum + team.probability,
@@ -545,7 +704,13 @@ export function runMonteCarlo(
     totalProbability,
     snapshot: snapshot ?? null,
     mode: snapshot && snapshot.finishedCount > 0 ? 'live' : 'pre-tournament',
+    simulationMode,
   };
 }
 
-export { DEFAULT_ITERATIONS };
+export {
+  DEFAULT_ITERATIONS,
+  SERIOUS_SEED,
+  SATIRICAL_SEED,
+  getSeedForMode,
+};
