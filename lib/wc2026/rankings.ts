@@ -1,9 +1,19 @@
 import type { TeamProbability } from './types';
 
+export function compareTeamsByProbability(
+  a: TeamProbability,
+  b: TeamProbability,
+): number {
+  if (b.probability !== a.probability) {
+    return b.probability - a.probability;
+  }
+  return a.name.localeCompare(b.name);
+}
+
 export function sortTeamsByProbability(
   teams: TeamProbability[],
 ): TeamProbability[] {
-  return [...teams].sort((a, b) => b.probability - a.probability);
+  return [...teams].sort(compareTeamsByProbability);
 }
 
 /** Top teams by title probability; prefers active teams, else full ranked list. */
