@@ -16,6 +16,7 @@ import {
   getFixturesByGroup,
   knockoutRoundOrder,
 } from './fixtures';
+import { compareTeamsByProbability } from './rankings';
 import { getTeamMap, getTeamsByGroup } from './teams';
 import type {
   GroupStanding,
@@ -572,7 +573,7 @@ function buildChampionResult(
       final: team.id === championId ? 1 : 0,
       eliminated: eliminated.has(team.id) && team.id !== championId,
     }))
-    .sort((a, b) => b.probability - a.probability);
+    .sort(compareTeamsByProbability);
 
   return {
     iterations,
@@ -623,7 +624,7 @@ function buildTeamProbabilities(
         eliminated: isEliminated,
       };
     })
-    .sort((a, b) => b.probability - a.probability);
+    .sort(compareTeamsByProbability);
 }
 
 export function runMonteCarlo(

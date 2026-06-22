@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useMemo, useState } from 'react';
 import { runMonteCarloChunked } from '@/lib/wc2026/client-runner';
+import { getTopTeamsByProbability } from '@/lib/wc2026/rankings';
 import { DEFAULT_ITERATIONS } from '@/lib/wc2026/simulate';
 import type {
   GroupLetter,
@@ -79,10 +80,10 @@ export default function Wc2026Dashboard({
     formatInitialRunInfo(initialResult.iterations, snapshot),
   );
 
-  const topThree = useMemo(() => {
-    const active = result.teams.filter((team) => !team.eliminated);
-    return active.length > 0 ? active.slice(0, 3) : result.teams.slice(0, 3);
-  }, [result.teams]);
+  const topThree = useMemo(
+    () => getTopTeamsByProbability(result.teams, 3),
+    [result.teams],
+  );
 
   const liveEyebrow = useMemo(() => {
     if (result.mode === 'live') {

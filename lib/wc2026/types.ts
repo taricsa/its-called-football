@@ -96,6 +96,7 @@ export type TournamentSnapshot = {
 
 export type SimulationResult = {
   iterations: number;
+  /** Title probabilities, sorted descending by `probability`, then name. */
   teams: TeamProbability[];
   totalProbability: number;
   snapshot: TournamentSnapshot | null;
