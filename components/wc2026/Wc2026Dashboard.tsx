@@ -81,7 +81,7 @@ export default function Wc2026Dashboard({
 
   const topThree = useMemo(() => {
     const active = result.teams.filter((team) => !team.eliminated);
-    return active.slice(0, 3);
+    return active.length > 0 ? active.slice(0, 3) : result.teams.slice(0, 3);
   }, [result.teams]);
 
   const liveEyebrow = useMemo(() => {
