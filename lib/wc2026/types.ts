@@ -12,11 +12,19 @@ export type GroupLetter =
   | 'K'
   | 'L';
 
+export type SimulationMode = 'serious' | 'satirical';
+
+export type MatchContext = 'group' | 'knockout';
+
 export type SatiricalAdjustment =
   | 'terminology_bonus'
   | 'hand_egg_penalty'
   | 'host_advantage'
   | 'traitor_penalty';
+
+export type StageKey = 'r32' | 'r16' | 'qf' | 'sf' | 'final' | 'champion';
+
+export type StageCounts = Record<StageKey, number>;
 
 export type Team = {
   id: string;
@@ -50,6 +58,11 @@ export type TeamProbability = {
   adjustments: SatiricalAdjustment[];
   wins: number;
   probability: number;
+  r32: number;
+  r16: number;
+  qf: number;
+  sf: number;
+  final: number;
   baselineProbability?: number;
   probabilityDelta?: number;
   eliminated?: boolean;
@@ -87,6 +100,7 @@ export type SimulationResult = {
   totalProbability: number;
   snapshot: TournamentSnapshot | null;
   mode: 'live' | 'pre-tournament';
+  simulationMode: SimulationMode;
   hasBaselineComparison?: boolean;
 };
 
