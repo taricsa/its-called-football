@@ -379,7 +379,7 @@ function knockoutOrderToStageIdx(order: number): number {
 }
 
 function stageIdxForSurvivorRound(survivorCount: number): number {
-  return 7 - Math.round(Math.log2(survivorCount));
+  return 7 - Math.ceil(Math.log2(survivorCount));
 }
 
 function simulateKnockoutFromSnapshot(
