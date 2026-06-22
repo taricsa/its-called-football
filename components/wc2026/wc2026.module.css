@@ -81,44 +81,79 @@
   font-family: var(--font-wc-bebas), sans-serif;
   font-weight: 400;
   letter-spacing: 0.02em;
-  font-size: 2.15rem;
+  font-size: clamp(2rem, 4vw, 2.75rem);
   line-height: 1;
-  margin: 0.4rem 0 1rem;
+  margin: 0.4rem 0 0;
   position: relative;
 }
 
-.leader {
-  display: flex;
-  align-items: baseline;
-  gap: 0.55rem;
-  flex-wrap: wrap;
+.heroHeader {
   position: relative;
+  width: 100%;
 }
 
-.leaderFlag {
-  font-size: 1.9rem;
+.heroPodium {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  position: relative;
+  width: 100%;
 }
 
-.leaderName {
+.podiumCard {
+  background: rgba(245, 242, 233, 0.08);
+  border: 1px solid rgba(245, 242, 233, 0.14);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  text-align: center;
+}
+
+.podiumLead {
+  background: rgba(216, 163, 61, 0.12);
+  border-color: rgba(216, 163, 61, 0.35);
+}
+
+.podiumRank {
+  font-family: var(--font-wc-mono), monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--wc-gold);
+  margin: 0;
+}
+
+.podiumName {
   font-family: var(--font-wc-bebas), sans-serif;
-  font-size: 1.5rem;
-  letter-spacing: 0.01em;
+  font-size: clamp(1.15rem, 2.5vw, 1.55rem);
+  letter-spacing: 0.02em;
+  margin: 0.35rem 0 0;
+  line-height: 1.1;
 }
 
-.leaderPct {
+.podiumPct {
   font-family: var(--font-wc-mono), monospace;
   font-weight: 600;
-  font-size: 2.1rem;
+  font-size: clamp(1.5rem, 3vw, 2rem);
   color: var(--wc-gold);
+  margin: 0.35rem 0 0;
+  line-height: 1;
+}
+
+.podiumMeta {
+  font-family: var(--font-wc-mono), monospace;
+  font-size: 0.68rem;
+  opacity: 0.72;
+  margin: 0.45rem 0 0;
 }
 
 .heroSub {
   font-size: 0.82rem;
   opacity: 0.78;
-  margin-top: 0.5rem;
-  max-width: 46ch;
+  margin-top: 1rem;
+  max-width: none;
   position: relative;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 .backLink {
@@ -407,5 +442,9 @@
 @media (max-width: 680px) {
   .optCol {
     display: none;
+  }
+
+  .heroPodium {
+    grid-template-columns: 1fr;
   }
 }

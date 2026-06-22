@@ -79,9 +79,9 @@ export default function Wc2026Dashboard({
     formatInitialRunInfo(initialResult.iterations, snapshot),
   );
 
-  const leader = useMemo(() => {
+  const topThree = useMemo(() => {
     const active = result.teams.filter((team) => !team.eliminated);
-    return active[0] ?? result.teams[0];
+    return active.slice(0, 3);
   }, [result.teams]);
 
   const liveEyebrow = useMemo(() => {
@@ -158,21 +158,40 @@ export default function Wc2026Dashboard({
     <div className={`${styles.pitch} ${fontClassName}`}>
       <div className={styles.wrap}>
         <div className={styles.hero}>
-          <Link href="/" className={styles.backLink}>
-            ← Return to Linguistic Justice HQ
-          </Link>
-          <div className={styles.eyebrow}>
-            <span className={styles.eyebrowDot} />
-            {liveEyebrow}
+          <div className={styles.heroHeader}>
+            <Link href="/" className={styles.backLink}>
+              ← Return to Linguistic Justice HQ
+            </Link>
+            <div className={styles.eyebrow}>
+              <span className={styles.eyebrowDot} />
+              {liveEyebrow}
+            </div>
+            <h1 className={styles.title}>WORLD CUP 2026 — TITLE ODDS</h1>
           </div>
-          <h1 className={styles.title}>WORLD CUP 2026 — TITLE ODDS</h1>
-          <div className={styles.leader}>
-            <span className={styles.leaderFlag}>⚽</span>
-            <span className={styles.leaderName}>{leader?.name ?? '—'}</span>
-            <span className={styles.leaderPct}>
-              {leader ? `${(leader.probability * 100).toFixed(1)}%` : '—'}
-            </span>
+
+          <div className={styles.heroPodium}>
+            {topThree.map((team, index) => (
+              <div
+                key={team.teamId}
+                className={`${styles.podiumCard} ${
+                  index === 0 ? styles.podiumLead : ''
+                }`}
+              >
+                <p className={styles.podiumRank}>
+                  #{index + 1}{' '}
+                  {index === 0 ? 'Favourite' : 'Contender'}
+                </p>
+                <p className={styles.podiumName}>{team.name}</p>
+                <p className={styles.podiumPct}>
+                  {(team.probability * 100).toFixed(1)}%
+                </p>
+                <p className={styles.podiumMeta}>
+                  Group {team.group} · Elo {Math.round(team.adjustedElo)}
+                </p>
+              </div>
+            ))}
           </div>
+
           <p className={styles.heroSub}>
             Monte Carlo estimate of each of the 48 teams&apos; chance of winning
             the tournament — built from{' '}
