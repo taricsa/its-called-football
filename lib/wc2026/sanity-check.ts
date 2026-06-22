@@ -1,3 +1,7 @@
+import {
+  assertTeamsSortedByProbability,
+  getTopTeamsByProbability,
+} from './rankings';
 import { runMonteCarlo, DEFAULT_ITERATIONS } from './simulate';
 
 console.log('=== WC2026 Monte Carlo Sanity Check ===\n');
@@ -14,7 +18,10 @@ for (const mode of ['serious', 'satirical'] as const) {
   const totalOk = Math.abs(result.totalProbability - 1) < 0.001;
   console.log(`Sum to ~100%: ${totalOk ? 'PASS' : 'FAIL'}`);
 
-  const topTeam = result.teams[0];
+  const sortedOk = assertTeamsSortedByProbability(result.teams);
+  console.log(`Teams sorted by probability: ${sortedOk ? 'PASS' : 'FAIL'}`);
+
+  const topTeam = getTopTeamsByProbability(result.teams, 1)[0];
   console.log(
     `Top team: ${topTeam.name} ${(topTeam.probability * 100).toFixed(2)}% (R32 ${(topTeam.r32 * 100).toFixed(1)}%)`,
   );
@@ -26,7 +33,7 @@ for (const mode of ['serious', 'satirical'] as const) {
     console.log(`USA adjusted Elo: ${result.teams.find((t) => t.teamId === 'USA')?.adjustedElo}`);
   }
 
-  if (!totalOk || !r32Ok) {
+  if (!totalOk || !sortedOk || !r32Ok) {
     process.exit(1);
   }
 }
