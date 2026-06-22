@@ -112,6 +112,10 @@ export default function Wc2026ProbabilityTable({
           break;
       }
 
+      if (va === vb) {
+        return a.name.localeCompare(b.name);
+      }
+
       if (typeof va === 'string' && typeof vb === 'string') {
         return sortDir * va.localeCompare(vb);
       }
