@@ -328,35 +328,45 @@ function simulateKnockoutRound(
   random: () => number,
 ): { championId: string; stageReached: Map<string, number> } {
   const stageReached = new Map<string, number>();
-  let roundTeams: GroupStanding[] = advancers;
 
   for (const advancer of advancers) {
     recordStageReached(stageReached, advancer.teamId, 1);
   }
 
-  let stageIdx = 1;
+  const initialPairs = buildBracketPairs(advancers, random);
+  let currentRoundWinners = initialPairs.map(([idA, idB]) => {
+    const winner = sampleKnockoutWinner(
+      matchElos.get(idA)!.knockout,
+      matchElos.get(idB)!.knockout,
+      random,
+    );
+    const winnerId = winner === 'A' ? idA : idB;
+    recordStageReached(stageReached, winnerId, 2);
+    return winnerId;
+  });
 
-  while (roundTeams.length > 1) {
-    const pairs = buildBracketPairs(roundTeams, random);
-    const next: GroupStanding[] = [];
+  let stageIdx = 2;
+  while (currentRoundWinners.length > 1) {
+    const nextRoundWinners: string[] = [];
     stageIdx += 1;
 
-    for (const [teamAId, teamBId] of pairs) {
+    for (let i = 0; i < currentRoundWinners.length; i += 2) {
+      const teamAId = currentRoundWinners[i];
+      const teamBId = currentRoundWinners[i + 1];
       const winner = sampleKnockoutWinner(
         matchElos.get(teamAId)!.knockout,
         matchElos.get(teamBId)!.knockout,
         random,
       );
       const winnerId = winner === 'A' ? teamAId : teamBId;
-      const standing = roundTeams.find((t) => t.teamId === winnerId)!;
-      next.push(standing);
+      nextRoundWinners.push(winnerId);
       recordStageReached(stageReached, winnerId, stageIdx);
     }
 
-    roundTeams = next;
+    currentRoundWinners = nextRoundWinners;
   }
 
-  const championId = roundTeams[0].teamId;
+  const championId = currentRoundWinners[0];
   recordStageReached(stageReached, championId, STAGE_KEYS.length);
   return { championId, stageReached };
 }

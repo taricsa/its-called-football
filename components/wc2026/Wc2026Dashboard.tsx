@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { runMonteCarloChunked } from '@/lib/wc2026/client-runner';
 import { DEFAULT_ITERATIONS } from '@/lib/wc2026/simulate';
 import type {
@@ -45,6 +45,25 @@ function formatSyncTime(iso: string): string {
   }).format(new Date(iso));
 }
 
+function formatSyncNote(snapshot: TournamentSnapshot | null): string {
+  if (!snapshot || snapshot.source !== 'fifa') {
+    return 'FIFA data unavailable — simulating full schedule from Elo.';
+  }
+  if (snapshot.warning) {
+    return snapshot.warning;
+  }
+  return `${snapshot.finishedCount} finished${
+    snapshot.liveCount > 0 ? `, ${snapshot.liveCount} live` : ''
+  } · synced ${formatSyncTime(snapshot.fetchedAt)} UTC`;
+}
+
+function formatInitialRunInfo(
+  iterations: number,
+  snapshot: TournamentSnapshot | null,
+): string {
+  return `${iterations.toLocaleString()} runs · server initial load · ${formatSyncNote(snapshot)}`;
+}
+
 export default function Wc2026Dashboard({
   initialResult,
   snapshot,
@@ -56,7 +75,9 @@ export default function Wc2026Dashboard({
   const [iterations, setIterations] = useState(DEFAULT_ITERATIONS);
   const [activeGroup, setActiveGroup] = useState<GroupLetter | 'ALL'>('ALL');
   const [isRunning, setIsRunning] = useState(false);
-  const [runInfo, setRunInfo] = useState('');
+  const [runInfo, setRunInfo] = useState(() =>
+    formatInitialRunInfo(initialResult.iterations, snapshot),
+  );
 
   const leader = useMemo(() => {
     const active = result.teams.filter((team) => !team.eliminated);
@@ -70,17 +91,7 @@ export default function Wc2026Dashboard({
     return 'PRE-TOURNAMENT · MONTE CARLO MODEL';
   }, [result.mode]);
 
-  const syncNote = useMemo(() => {
-    if (!snapshot || snapshot.source !== 'fifa') {
-      return 'FIFA data unavailable — simulating full schedule from Elo.';
-    }
-    if (snapshot.warning) {
-      return snapshot.warning;
-    }
-    return `${snapshot.finishedCount} finished${
-      snapshot.liveCount > 0 ? `, ${snapshot.liveCount} live` : ''
-    } · synced ${formatSyncTime(snapshot.fetchedAt)} UTC`;
-  }, [snapshot]);
+  const syncNote = useMemo(() => formatSyncNote(snapshot), [snapshot]);
 
   const doRun = useCallback(
     async (mode: SimulationMode, n: number) => {
@@ -130,12 +141,6 @@ export default function Wc2026Dashboard({
     },
     [initialResult, snapshot],
   );
-
-  useEffect(() => {
-    setRunInfo(
-      `${result.iterations.toLocaleString()} runs · server initial load · ${syncNote}`,
-    );
-  }, [result.iterations, syncNote]);
 
   const handleModeChange = (mode: SimulationMode) => {
     if (mode === simulationMode || isRunning) {

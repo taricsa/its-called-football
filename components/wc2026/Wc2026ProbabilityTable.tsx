@@ -138,7 +138,8 @@ export default function Wc2026ProbabilityTable({
     }
 
     setSortKey(key);
-    setSortDir(-1);
+    const isTextCol = key === 'name' || key === 'group';
+    setSortDir(isTextCol ? 1 : -1);
   };
 
   const renderArrow = (key: SortKey) => {
