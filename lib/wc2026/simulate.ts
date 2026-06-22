@@ -378,6 +378,10 @@ function knockoutOrderToStageIdx(order: number): number {
   return order;
 }
 
+function stageIdxForSurvivorRound(survivorCount: number): number {
+  return 7 - Math.ceil(Math.log2(survivorCount));
+}
+
 function simulateKnockoutFromSnapshot(
   advancers: string[],
   matchElos: Map<string, { group: number; knockout: number }>,
@@ -483,6 +487,7 @@ function simulateKnockoutFromSnapshot(
   }
 
   while (survivors.length > 1) {
+    const stageIdx = stageIdxForSurvivorRound(survivors.length);
     const nextRound: string[] = [];
 
     for (let i = 0; i < survivors.length; i += 2) {
@@ -498,7 +503,9 @@ function simulateKnockoutFromSnapshot(
         matchElos.get(teamB)!.knockout,
         random,
       );
-      nextRound.push(winner === 'A' ? teamA : teamB);
+      const winnerId = winner === 'A' ? teamA : teamB;
+      nextRound.push(winnerId);
+      recordStageReached(stageReached, winnerId, stageIdx);
     }
 
     survivors.splice(0, survivors.length, ...nextRound);
