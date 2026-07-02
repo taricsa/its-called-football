@@ -74,15 +74,20 @@ export type MatchStatus = 'scheduled' | 'live' | 'finished';
 
 export type MatchRecord = {
   id: number;
-  homeTeamId: string;
-  awayTeamId: string;
+  matchNumber: number | null;
+  homeTeamId: string | null;
+  awayTeamId: string | null;
   homeGoals: number | null;
   awayGoals: number | null;
+  homePenaltyGoals: number | null;
+  awayPenaltyGoals: number | null;
   status: MatchStatus;
   stage: MatchStage;
   group?: GroupLetter;
   round: string;
   date: string;
+  placeholderA: string | null;
+  placeholderB: string | null;
 };
 
 export type TournamentSnapshot = {

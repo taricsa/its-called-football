@@ -39,12 +39,17 @@ type FifaMatch = {
   Date: string;
   MatchStatus: number;
   MatchTime?: string | null;
+  MatchNumber?: number | null;
   StageName?: FifaLocalizedText[];
   GroupName?: FifaLocalizedText[];
   Home?: FifaTeam | null;
   Away?: FifaTeam | null;
   HomeTeamScore?: number | null;
   AwayTeamScore?: number | null;
+  HomeTeamPenaltyScore?: number | null;
+  AwayTeamPenaltyScore?: number | null;
+  PlaceHolderA?: string | null;
+  PlaceHolderB?: string | null;
 };
 
 type FifaCalendarResponse = {
@@ -111,31 +116,51 @@ function mapFifaTeam(team: FifaTeam | null | undefined): string | null {
 function normalizeFifaMatch(match: FifaMatch): MatchRecord | null {
   const homeTeamId = mapFifaTeam(match.Home);
   const awayTeamId = mapFifaTeam(match.Away);
+  const placeholderA = match.PlaceHolderA?.trim() || null;
+  const placeholderB = match.PlaceHolderB?.trim() || null;
+  const round = buildRound(match);
 
-  if (!homeTeamId || !awayTeamId) {
+  const isKnockout = isKnockoutRound(round);
+
+  // Skip only if we have no way to identify what this match is: no teams and
+  // no bracket placeholders. For knockout rounds later in the tournament,
+  // teams may not yet be resolved but placeholders like "W89" still let us
+  // simulate the bracket.
+  if (!homeTeamId && !awayTeamId && !placeholderA && !placeholderB) {
     return null;
   }
 
-  const round = buildRound(match);
-  const stage = isGroupStageRound(round)
+  const stage: 'group' | 'knockout' = isGroupStageRound(round)
     ? 'group'
-    : isKnockoutRound(round)
+    : isKnockout
       ? 'knockout'
-      : getGroupForTeam(homeTeamId)
+      : (homeTeamId && getGroupForTeam(homeTeamId)) ||
+          (awayTeamId && getGroupForTeam(awayTeamId))
         ? 'group'
         : 'knockout';
 
+  const referenceTeamId = homeTeamId ?? awayTeamId;
+  const group =
+    extractGroup(match) ??
+    (referenceTeamId ? getGroupForTeam(referenceTeamId) : undefined);
+
   return {
     id: Number.parseInt(match.IdMatch, 10),
+    matchNumber:
+      typeof match.MatchNumber === 'number' ? match.MatchNumber : null,
     homeTeamId,
     awayTeamId,
     homeGoals: match.HomeTeamScore ?? match.Home?.Score ?? null,
     awayGoals: match.AwayTeamScore ?? match.Away?.Score ?? null,
+    homePenaltyGoals: match.HomeTeamPenaltyScore ?? null,
+    awayPenaltyGoals: match.AwayTeamPenaltyScore ?? null,
     status: mapFifaStatus(match),
     stage,
-    group: extractGroup(match) ?? getGroupForTeam(homeTeamId),
+    group,
     round,
     date: match.Date,
+    placeholderA,
+    placeholderB,
   };
 }
 

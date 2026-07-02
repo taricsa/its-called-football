@@ -74,7 +74,10 @@ export function isKnockoutRound(round: string): boolean {
     normalized.includes('round of') ||
     normalized.includes('quarter') ||
     normalized.includes('semi') ||
-    normalized.includes('final')
+    normalized.includes('final') ||
+    normalized.includes('third place') ||
+    normalized.includes('3rd place') ||
+    normalized.includes('play-off for third')
   );
 }
 
