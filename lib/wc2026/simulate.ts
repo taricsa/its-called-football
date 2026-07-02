@@ -405,6 +405,20 @@ function buildGroupPlaceholderMap(
     }
   }
 
+  if (remaining.size > 0) {
+    const emptySlots = Object.keys(THIRD_PLACE_SLOT_PRIORITY).filter(
+      (slotKey) => !map.has(slotKey),
+    );
+    const remainingStandings = Array.from(remaining.values());
+    for (
+      let i = 0;
+      i < Math.min(emptySlots.length, remainingStandings.length);
+      i += 1
+    ) {
+      map.set(emptySlots[i], remainingStandings[i].teamId);
+    }
+  }
+
   return map;
 }
 
@@ -511,11 +525,19 @@ function simulateKnockoutFromBracket(
 
     if (match.status === 'finished') {
       const actualWinner = getMatchWinner(match);
-      if (!actualWinner) {
-        continue;
+      if (actualWinner) {
+        winnerId = actualWinner;
+        loserId = actualWinner === homeId ? awayId : homeId;
+      } else {
+        const homeElo = matchElos.get(homeId)?.knockout;
+        const awayElo = matchElos.get(awayId)?.knockout;
+        if (typeof homeElo !== 'number' || typeof awayElo !== 'number') {
+          continue;
+        }
+        const pick = sampleKnockoutWinner(homeElo, awayElo, random);
+        winnerId = pick === 'A' ? homeId : awayId;
+        loserId = pick === 'A' ? awayId : homeId;
       }
-      winnerId = actualWinner;
-      loserId = actualWinner === homeId ? awayId : homeId;
     } else {
       const homeElo = matchElos.get(homeId)?.knockout;
       const awayElo = matchElos.get(awayId)?.knockout;
