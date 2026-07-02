@@ -55,16 +55,13 @@ const R32_ORDER = 1;
 const THIRD_PLACE_ORDER = 5;
 const FINAL_ORDER = 6;
 
-// Third-place-team assignment table from FIFA's WC 2026 regulations.
-// See https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026
-// Each string represents the group set for a third-place slot; the value
-// is the ordered list of groups whose third-place finisher fills that slot,
-// mapped by the number of third-place teams that advance (typically 8).
+// Third-place-team slot placeholders used by FIFA's WC 2026 R32 bracket.
+// Each key matches a `PlaceHolder{A,B}` value from the FIFA API for a
+// third-place slot; the value is the ordered list of groups whose
+// third-place finisher is eligible to fill that slot. There are exactly 8
+// slots because 8 third-place teams advance from the 12-group format.
 const THIRD_PLACE_SLOT_PRIORITY: Record<string, GroupLetter[]> = {
   '3ABCDF': ['A', 'B', 'C', 'D', 'F'],
-  '3ACDEG': ['A', 'C', 'D', 'E', 'G'],
-  '3ABEFG': ['A', 'B', 'E', 'F', 'G'],
-  '3BEFGH': ['B', 'E', 'F', 'G', 'H'],
   '3CDFGH': ['C', 'D', 'F', 'G', 'H'],
   '3CEFHI': ['C', 'E', 'F', 'H', 'I'],
   '3EHIJK': ['E', 'H', 'I', 'J', 'K'],
@@ -72,9 +69,6 @@ const THIRD_PLACE_SLOT_PRIORITY: Record<string, GroupLetter[]> = {
   '3BEFIJ': ['B', 'E', 'F', 'I', 'J'],
   '3EFGIJ': ['E', 'F', 'G', 'I', 'J'],
   '3DEIJL': ['D', 'E', 'I', 'J', 'L'],
-  '3ABCEF': ['A', 'B', 'C', 'E', 'F'],
-  '3ABDEF': ['A', 'B', 'D', 'E', 'F'],
-  '3DEFGH': ['D', 'E', 'F', 'G', 'H'],
 };
 
 function createEmptyStageCounts(): StageCounts {

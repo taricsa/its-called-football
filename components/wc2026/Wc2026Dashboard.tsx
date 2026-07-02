@@ -90,34 +90,51 @@ export default function Wc2026Dashboard({
       return 'PRE-TOURNAMENT · MONTE CARLO MODEL';
     }
 
-    const rounds = new Set(
-      snapshot.matches
-        .filter((match) => match.stage === 'knockout')
-        .map((match) => match.round.toLowerCase()),
-    );
+    const isFinalMatch = (round: string) =>
+      round.includes('final') &&
+      !round.includes('semi') &&
+      !round.includes('quarter') &&
+      !round.includes('third') &&
+      !round.includes('3rd') &&
+      !round.includes('play-off');
 
-    const anyFinished = (predicate: (round: string) => boolean) =>
+    const anyUnfinished = (predicate: (round: string) => boolean) =>
       snapshot.matches.some(
-        (match) => match.status === 'finished' && predicate(match.round.toLowerCase()),
+        (match) =>
+          match.status !== 'finished' &&
+          predicate(match.round.toLowerCase()),
       );
 
-    if (anyFinished((r) => r.includes('final') && !r.includes('semi') && !r.includes('quarter') && !r.includes('third') && !r.includes('3rd'))) {
-      return 'CHAMPION CROWNED · FIFA SYNC';
+    const isRoundFullyFinished = (predicate: (round: string) => boolean) => {
+      const roundMatches = snapshot.matches.filter((match) =>
+        predicate(match.round.toLowerCase()),
+      );
+      return (
+        roundMatches.length > 0 &&
+        roundMatches.every((match) => match.status === 'finished')
+      );
+    };
+
+    if (anyUnfinished((r) => r.includes('group'))) {
+      return 'GROUP STAGE · LIVE MODEL · FIFA SYNC';
     }
-    if (anyFinished((r) => r.includes('semi'))) {
-      return 'FINAL WEEK · LIVE MODEL · FIFA SYNC';
+    if (anyUnfinished((r) => r.includes('round of 32') || r.includes('1/16'))) {
+      return 'ROUND OF 32 · LIVE MODEL · FIFA SYNC';
     }
-    if (anyFinished((r) => r.includes('quarter'))) {
-      return 'SEMI-FINALS · LIVE MODEL · FIFA SYNC';
-    }
-    if (anyFinished((r) => r.includes('round of 16') || r.includes('1/8'))) {
-      return 'QUARTER-FINALS · LIVE MODEL · FIFA SYNC';
-    }
-    if (anyFinished((r) => r.includes('round of 32') || r.includes('1/16'))) {
+    if (anyUnfinished((r) => r.includes('round of 16') || r.includes('1/8'))) {
       return 'ROUND OF 16 · LIVE MODEL · FIFA SYNC';
     }
-    if (rounds.size > 0 && snapshot.matches.some((m) => m.stage === 'group' && m.status === 'finished')) {
-      return 'GROUP STAGE · LIVE MODEL · FIFA SYNC';
+    if (anyUnfinished((r) => r.includes('quarter'))) {
+      return 'QUARTER-FINALS · LIVE MODEL · FIFA SYNC';
+    }
+    if (anyUnfinished((r) => r.includes('semi'))) {
+      return 'SEMI-FINALS · LIVE MODEL · FIFA SYNC';
+    }
+    if (anyUnfinished(isFinalMatch)) {
+      return 'FINAL WEEK · LIVE MODEL · FIFA SYNC';
+    }
+    if (isRoundFullyFinished(isFinalMatch)) {
+      return 'CHAMPION CROWNED · FIFA SYNC';
     }
     return 'LIVE MODEL · FIFA SYNC';
   }, [result.mode, snapshot]);
