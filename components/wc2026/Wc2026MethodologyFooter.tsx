@@ -40,8 +40,11 @@ export default function Wc2026MethodologyFooter({
           : ', plus satirical linguistic adjustments when Linguistic Justice mode is on.'}{' '}
         Final group tables are settled by points, then goal difference, then goals
         for. The top two from each group plus the best eight third-place teams
-        advance to a 32-team knockout bracket, simulated round by round with no
-        draws.
+        advance to a 32-team knockout bracket. Once the knockout draw is live,
+        the simulation follows FIFA&apos;s published bracket (match numbers and
+        placeholders), so every remaining fixture keeps its correct next-round
+        pairing. Finished knockout ties — including those decided on penalties
+        — are locked in from the FIFA feed.
       </p>
       <p>
         <strong>Serious mode (default)</strong> uses World Football Elo-style
@@ -51,13 +54,16 @@ export default function Wc2026MethodologyFooter({
         Japan&apos;s borrowed &quot;sakkā.&quot;
       </p>
       <p>
-        <strong>Simplifications worth knowing about:</strong> the Round-of-32 draw
-        in pre-tournament mode is a randomized pairing that avoids two teams from
-        the same group meeting immediately — it does not replicate FIFA&apos;s exact
-        published combination table for the eight third-place slots. Elo ratings
-        are a single global snapshot, not adjusted for injuries, suspensions, or
-        travel. Extra time and penalties are not modeled — knockout ties are broken
-        by Elo probability alone.
+        <strong>Simplifications worth knowing about:</strong> in pre-tournament
+        mode the Round-of-32 draw is a randomized pairing that avoids two teams
+        from the same group meeting immediately — it does not fully replicate
+        FIFA&apos;s published combination table for the eight third-place slots.
+        Elo ratings are a single global snapshot, not adjusted for injuries,
+        suspensions, or travel. For unfinished knockout matches we do not model
+        extra time or penalty shootouts separately — the tie is resolved by Elo
+        win probability alone. Once the tournament is live, real finished
+        results (including penalty shootouts) come straight from FIFA and are
+        locked in.
       </p>
       {mode === 'live' && (
         <p>
