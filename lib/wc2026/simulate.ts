@@ -19,6 +19,7 @@ import {
 import { compareTeamsByProbability } from './rankings';
 import { getTeamMap, getTeamsByGroup } from './teams';
 import type {
+  GroupLetter,
   GroupStanding,
   MatchRecord,
   SimulationMode,
@@ -34,6 +35,13 @@ const DEFAULT_ITERATIONS = 10_000;
 const SERIOUS_SEED = 'wc2026-serious';
 const SATIRICAL_SEED = 'wc2026-linguistic-justice';
 
+// Stage progression tracked per team, indexed by "reached stage":
+//   1 = reached R32 (advanced from group)
+//   2 = reached R16 (won R32 match)
+//   3 = reached QF (won R16 match)
+//   4 = reached SF (won QF match)
+//   5 = reached Final (won SF match)
+//   6 = champion (won Final)
 const STAGE_KEYS: StageKey[] = [
   'r32',
   'r16',
@@ -42,6 +50,32 @@ const STAGE_KEYS: StageKey[] = [
   'final',
   'champion',
 ];
+
+const R32_ORDER = 1;
+const THIRD_PLACE_ORDER = 5;
+const FINAL_ORDER = 6;
+
+// Third-place-team assignment table from FIFA's WC 2026 regulations.
+// See https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026
+// Each string represents the group set for a third-place slot; the value
+// is the ordered list of groups whose third-place finisher fills that slot,
+// mapped by the number of third-place teams that advance (typically 8).
+const THIRD_PLACE_SLOT_PRIORITY: Record<string, GroupLetter[]> = {
+  '3ABCDF': ['A', 'B', 'C', 'D', 'F'],
+  '3ACDEG': ['A', 'C', 'D', 'E', 'G'],
+  '3ABEFG': ['A', 'B', 'E', 'F', 'G'],
+  '3BEFGH': ['B', 'E', 'F', 'G', 'H'],
+  '3CDFGH': ['C', 'D', 'F', 'G', 'H'],
+  '3CEFHI': ['C', 'E', 'F', 'H', 'I'],
+  '3EHIJK': ['E', 'H', 'I', 'J', 'K'],
+  '3AEHIJ': ['A', 'E', 'H', 'I', 'J'],
+  '3BEFIJ': ['B', 'E', 'F', 'I', 'J'],
+  '3EFGIJ': ['E', 'F', 'G', 'I', 'J'],
+  '3DEIJL': ['D', 'E', 'I', 'J', 'L'],
+  '3ABCEF': ['A', 'B', 'C', 'E', 'F'],
+  '3ABDEF': ['A', 'B', 'D', 'E', 'F'],
+  '3DEFGH': ['D', 'E', 'F', 'G', 'H'],
+};
 
 function createEmptyStageCounts(): StageCounts {
   return {
@@ -126,11 +160,15 @@ function applyMatchResult(
   away.points += 1;
 }
 
+// Returns the winner of a match, honoring penalty shootouts for tied knockout
+// games. Group-stage draws still resolve to null (draws remain draws).
 function getMatchWinner(match: MatchRecord): string | null {
   if (
+    match.status !== 'finished' ||
     match.homeGoals === null ||
     match.awayGoals === null ||
-    match.status !== 'finished'
+    !match.homeTeamId ||
+    !match.awayTeamId
   ) {
     return null;
   }
@@ -143,16 +181,41 @@ function getMatchWinner(match: MatchRecord): string | null {
     return match.awayTeamId;
   }
 
+  if (match.stage === 'knockout') {
+    const homePens = match.homePenaltyGoals;
+    const awayPens = match.awayPenaltyGoals;
+
+    if (
+      typeof homePens === 'number' &&
+      typeof awayPens === 'number' &&
+      homePens !== awayPens
+    ) {
+      return homePens > awayPens ? match.homeTeamId : match.awayTeamId;
+    }
+  }
+
   return null;
 }
 
-function buildFinishedMatchMap(
+function getMatchLoser(match: MatchRecord, winnerId: string): string | null {
+  if (!match.homeTeamId || !match.awayTeamId) {
+    return null;
+  }
+  return winnerId === match.homeTeamId ? match.awayTeamId : match.homeTeamId;
+}
+
+function buildFinishedGroupMatchMap(
   snapshot: TournamentSnapshot,
 ): Map<string, MatchRecord> {
   const finished = new Map<string, MatchRecord>();
 
   for (const match of snapshot.matches) {
-    if (match.status !== 'finished') {
+    if (
+      match.status !== 'finished' ||
+      match.stage !== 'group' ||
+      !match.homeTeamId ||
+      !match.awayTeamId
+    ) {
       continue;
     }
 
@@ -162,30 +225,21 @@ function buildFinishedMatchMap(
   return finished;
 }
 
-function buildKnockoutRounds(
-  snapshot: TournamentSnapshot,
-): Map<number, MatchRecord[]> {
-  const knockoutMatches = snapshot.matches
+function getKnockoutMatches(snapshot: TournamentSnapshot): MatchRecord[] {
+  return snapshot.matches
     .filter((match) => match.stage === 'knockout')
     .sort((a, b) => {
+      const numA = a.matchNumber ?? Number.MAX_SAFE_INTEGER;
+      const numB = b.matchNumber ?? Number.MAX_SAFE_INTEGER;
+      if (numA !== numB) {
+        return numA - numB;
+      }
       const roundDiff = knockoutRoundOrder(a.round) - knockoutRoundOrder(b.round);
       if (roundDiff !== 0) {
         return roundDiff;
       }
-
       return a.date.localeCompare(b.date);
     });
-
-  const rounds = new Map<number, MatchRecord[]>();
-
-  for (const match of knockoutMatches) {
-    const order = knockoutRoundOrder(match.round);
-    const existing = rounds.get(order) ?? [];
-    existing.push(match);
-    rounds.set(order, existing);
-  }
-
-  return rounds;
 }
 
 function findKnownChampion(snapshot: TournamentSnapshot): string | null {
@@ -193,11 +247,7 @@ function findKnownChampion(snapshot: TournamentSnapshot): string | null {
     (match) =>
       match.status === 'finished' &&
       match.stage === 'knockout' &&
-      match.round.toLowerCase().includes('final') &&
-      !match.round.toLowerCase().includes('semi') &&
-      !match.round.toLowerCase().includes('quarter') &&
-      !match.round.toLowerCase().includes('3rd') &&
-      !match.round.toLowerCase().includes('third'),
+      knockoutRoundOrder(match.round) === FINAL_ORDER,
   );
 
   if (finalMatches.length === 0) {
@@ -206,27 +256,6 @@ function findKnownChampion(snapshot: TournamentSnapshot): string | null {
 
   const finalMatch = finalMatches.sort((a, b) => b.date.localeCompare(a.date))[0];
   return getMatchWinner(finalMatch);
-}
-
-function getEliminatedFromSnapshot(snapshot: TournamentSnapshot): Set<string> {
-  const eliminated = new Set<string>();
-
-  for (const match of snapshot.matches) {
-    if (match.status !== 'finished' || match.stage !== 'knockout') {
-      continue;
-    }
-
-    const winner = getMatchWinner(match);
-    if (!winner) {
-      continue;
-    }
-
-    const loser =
-      winner === match.homeTeamId ? match.awayTeamId : match.homeTeamId;
-    eliminated.add(loser);
-  }
-
-  return eliminated;
 }
 
 function buildMatchElos(
@@ -260,22 +289,24 @@ function accumulateStageCounts(
   teamId: string,
   stageIdx: number,
 ): void {
-  const teamCounts = counts.get(teamId)!;
-  for (let s = 1; s <= stageIdx; s += 1) {
+  const teamCounts = counts.get(teamId);
+  if (!teamCounts) {
+    return;
+  }
+  for (let s = 1; s <= stageIdx && s <= STAGE_KEYS.length; s += 1) {
     teamCounts[STAGE_KEYS[s - 1]] += 1;
   }
 }
 
-function simulateGroupStage(
+function computeGroupStandings(
   matchElos: Map<string, { group: number; knockout: number }>,
   mode: SimulationMode,
   random: () => number,
-  finishedMatches: Map<string, MatchRecord>,
+  finishedGroupMatches: Map<string, MatchRecord>,
   fixturesByGroup: ReturnType<typeof getFixturesByGroup>,
-): GroupStanding[] {
-  const advancers: GroupStanding[] = [];
-  const thirdPlaces: GroupStanding[] = [];
+): Map<GroupLetter, GroupStanding[]> {
   const teamsByGroup = getTeamsByGroup();
+  const standingsByGroup = new Map<GroupLetter, GroupStanding[]>();
 
   for (const group of getAllGroups()) {
     const groupTeams = teamsByGroup.get(group) ?? [];
@@ -285,9 +316,15 @@ function simulateGroupStage(
 
     for (const fixture of fixturesByGroup.get(group) ?? []) {
       const key = getFixtureKey(fixture.homeTeamId, fixture.awayTeamId);
-      const finished = finishedMatches.get(key);
+      const finished = finishedGroupMatches.get(key);
 
-      if (finished && finished.homeGoals !== null && finished.awayGoals !== null) {
+      if (
+        finished &&
+        finished.homeGoals !== null &&
+        finished.awayGoals !== null &&
+        finished.homeTeamId &&
+        finished.awayTeamId
+      ) {
         applyMatchResult(
           standings,
           finished.homeTeamId,
@@ -314,16 +351,216 @@ function simulateGroupStage(
       standings,
       groupTeams.map((team) => team.id),
     );
+    standingsByGroup.set(group, ranked);
+  }
 
-    advancers.push(ranked[0], ranked[1]);
-    thirdPlaces.push(ranked[2]);
+  return standingsByGroup;
+}
+
+function collectGroupAdvancers(
+  standingsByGroup: Map<GroupLetter, GroupStanding[]>,
+): GroupStanding[] {
+  const advancers: GroupStanding[] = [];
+  const thirdPlaces: GroupStanding[] = [];
+
+  for (const ranked of standingsByGroup.values()) {
+    if (ranked.length >= 1) advancers.push(ranked[0]);
+    if (ranked.length >= 2) advancers.push(ranked[1]);
+    if (ranked.length >= 3) thirdPlaces.push(ranked[2]);
   }
 
   advancers.push(...selectAdvancingThirdPlaces(thirdPlaces));
   return advancers;
 }
 
-function simulateKnockoutRound(
+// Builds a placeholder → teamId map from the current group standings so that
+// R32 pairings expressed as "1A", "2B", "3ABCDF", etc. can be resolved.
+function buildGroupPlaceholderMap(
+  standingsByGroup: Map<GroupLetter, GroupStanding[]>,
+): Map<string, string> {
+  const map = new Map<string, string>();
+
+  const thirds: GroupStanding[] = [];
+
+  for (const [group, ranked] of standingsByGroup.entries()) {
+    if (ranked[0]) map.set(`1${group}`, ranked[0].teamId);
+    if (ranked[1]) map.set(`2${group}`, ranked[1].teamId);
+    if (ranked[2]) thirds.push(ranked[2]);
+  }
+
+  const advancingThirds = selectAdvancingThirdPlaces(thirds);
+  const advancingThirdIds = new Set(advancingThirds.map((s) => s.teamId));
+
+  // FIFA sorts qualifying third-place teams into slots based on which groups
+  // they belong to. We approximate using the published slot priority tables:
+  // for each slot key like "3ABCDF", pick the first advancing third-place
+  // team whose group appears in the priority list.
+  const remaining = new Map<string, GroupStanding>();
+  for (const third of advancingThirds) {
+    remaining.set(third.group, third);
+  }
+
+  for (const [slotKey, priority] of Object.entries(THIRD_PLACE_SLOT_PRIORITY)) {
+    for (const group of priority) {
+      const candidate = remaining.get(group);
+      if (candidate && advancingThirdIds.has(candidate.teamId)) {
+        map.set(slotKey, candidate.teamId);
+        remaining.delete(group);
+        break;
+      }
+    }
+  }
+
+  return map;
+}
+
+function resolvePlaceholder(
+  placeholder: string | null | undefined,
+  groupPlaceholders: Map<string, string>,
+  matchWinners: Map<number, string>,
+  matchLosers: Map<number, string>,
+): string | null {
+  if (!placeholder) {
+    return null;
+  }
+
+  const trimmed = placeholder.trim();
+
+  const winMatch = trimmed.match(/^W(\d+)$/i);
+  if (winMatch) {
+    return matchWinners.get(Number.parseInt(winMatch[1], 10)) ?? null;
+  }
+
+  const runnerUpMatch = trimmed.match(/^(?:RU|L)(\d+)$/i);
+  if (runnerUpMatch) {
+    return matchLosers.get(Number.parseInt(runnerUpMatch[1], 10)) ?? null;
+  }
+
+  return groupPlaceholders.get(trimmed) ?? null;
+}
+
+// Approximate participation stage for a given round order.
+//   R32 → reached R32 (stageIdx 1)
+//   R16 → reached R16 (stageIdx 2)
+//   QF  → reached QF  (stageIdx 3)
+//   SF  → reached SF  (stageIdx 4)
+//   Final → reached Final (stageIdx 5)
+function participationStageForRound(order: number): number {
+  return Math.max(1, Math.min(order, STAGE_KEYS.length - 1));
+}
+
+// After winning a match, a team advances one stage further.
+function advancementStageForRound(order: number): number {
+  return Math.min(order + 1, STAGE_KEYS.length);
+}
+
+type LiveKnockoutResult = {
+  championId: string | null;
+  stageReached: Map<string, number>;
+  eliminated: Set<string>;
+  advancers: Set<string>;
+};
+
+// Simulates the full knockout bracket using FIFA's published match numbering
+// so that pairings match reality (e.g. Winner of Match 73 vs Winner of Match
+// 75 in Round of 16). Finished matches are locked in (including penalty
+// shootouts); unfinished matches are simulated with Elo.
+function simulateKnockoutFromBracket(
+  matchElos: Map<string, { group: number; knockout: number }>,
+  random: () => number,
+  knockoutMatches: MatchRecord[],
+  groupPlaceholders: Map<string, string>,
+): LiveKnockoutResult {
+  const stageReached = new Map<string, number>();
+  const eliminated = new Set<string>();
+  const advancers = new Set<string>();
+  const matchWinners = new Map<number, string>();
+  const matchLosers = new Map<number, string>();
+  let championId: string | null = null;
+
+  for (const match of knockoutMatches) {
+    const order = knockoutRoundOrder(match.round);
+
+    const homeId: string | null =
+      match.homeTeamId ??
+      resolvePlaceholder(
+        match.placeholderA,
+        groupPlaceholders,
+        matchWinners,
+        matchLosers,
+      );
+    const awayId: string | null =
+      match.awayTeamId ??
+      resolvePlaceholder(
+        match.placeholderB,
+        groupPlaceholders,
+        matchWinners,
+        matchLosers,
+      );
+
+    if (!homeId || !awayId) {
+      continue;
+    }
+
+    // Both teams reached this match; only track R32-Final for the stage
+    // ladder, ignoring the 3rd-place playoff (which doesn't advance anyone).
+    const participation = participationStageForRound(order);
+    if (order !== THIRD_PLACE_ORDER) {
+      advancers.add(homeId);
+      advancers.add(awayId);
+      recordStageReached(stageReached, homeId, participation);
+      recordStageReached(stageReached, awayId, participation);
+    }
+
+    let winnerId: string;
+    let loserId: string;
+
+    if (match.status === 'finished') {
+      const actualWinner = getMatchWinner(match);
+      if (!actualWinner) {
+        continue;
+      }
+      winnerId = actualWinner;
+      loserId = actualWinner === homeId ? awayId : homeId;
+    } else {
+      const homeElo = matchElos.get(homeId)?.knockout;
+      const awayElo = matchElos.get(awayId)?.knockout;
+      if (typeof homeElo !== 'number' || typeof awayElo !== 'number') {
+        continue;
+      }
+      const pick = sampleKnockoutWinner(homeElo, awayElo, random);
+      winnerId = pick === 'A' ? homeId : awayId;
+      loserId = pick === 'A' ? awayId : homeId;
+    }
+
+    if (match.matchNumber !== null) {
+      matchWinners.set(match.matchNumber, winnerId);
+      matchLosers.set(match.matchNumber, loserId);
+    }
+
+    if (order === THIRD_PLACE_ORDER) {
+      // 3rd-place playoff does not affect the title path.
+      continue;
+    }
+
+    // Winner advances to the next stage; loser is eliminated at this stage
+    // (unless we're at the Final, in which case the loser is the runner-up).
+    recordStageReached(
+      stageReached,
+      winnerId,
+      advancementStageForRound(order),
+    );
+    eliminated.add(loserId);
+
+    if (order === FINAL_ORDER) {
+      championId = winnerId;
+    }
+  }
+
+  return { championId, stageReached, eliminated, advancers };
+}
+
+function simulateKnockoutFromAdvancers(
   advancers: GroupStanding[],
   matchElos: Map<string, { group: number; knockout: number }>,
   random: () => number,
@@ -372,177 +609,64 @@ function simulateKnockoutRound(
   return { championId, stageReached };
 }
 
-function knockoutOrderToStageIdx(order: number): number {
-  if (order <= 0 || order > 5) {
-    return order;
-  }
-  return order;
-}
+// Determines teams that are already eliminated from the perspective of the
+// snapshot: knocked out in a finished knockout match (including penalties)
+// or unable to advance from a group that has fully concluded.
+function getEliminatedFromSnapshot(
+  snapshot: TournamentSnapshot,
+): Set<string> {
+  const eliminated = new Set<string>();
 
-function stageIdxForSurvivorRound(survivorCount: number): number {
-  return 7 - Math.ceil(Math.log2(survivorCount));
-}
-
-function simulateKnockoutFromSnapshot(
-  advancers: string[],
-  matchElos: Map<string, { group: number; knockout: number }>,
-  random: () => number,
-  rounds: Map<number, MatchRecord[]>,
-): { championId: string; stageReached: Map<string, number> } {
-  const stageReached = new Map<string, number>();
-  const activeTeams = new Set(advancers);
-
-  for (const teamId of advancers) {
-    recordStageReached(stageReached, teamId, 1);
-  }
-
-  if (rounds.size === 0) {
-    const standings = advancers.map((teamId) => ({
-      teamId,
-      played: 3,
-      won: 1,
-      drawn: 0,
-      lost: 0,
-      goalsFor: 1,
-      goalsAgainst: 0,
-      points: 3,
-      position: 1 as const,
-      group: getTeamMap().get(teamId)!.group,
-    }));
-
-    return simulateKnockoutRound(standings, matchElos, random);
-  }
-
-  for (const order of [...rounds.keys()].sort((a, b) => a - b)) {
-    const roundMatches = rounds.get(order)!;
-    const stageIdx = knockoutOrderToStageIdx(order) + 1;
-
-    for (const match of roundMatches) {
-      if (
-        !activeTeams.has(match.homeTeamId) &&
-        !activeTeams.has(match.awayTeamId)
-      ) {
-        continue;
-      }
-
-      if (match.status === 'finished') {
-        const winner = getMatchWinner(match);
-        if (!winner) {
-          continue;
-        }
-
-        const loser =
-          winner === match.homeTeamId ? match.awayTeamId : match.homeTeamId;
-        activeTeams.delete(loser);
-        recordStageReached(stageReached, winner, stageIdx);
-        continue;
-      }
-
-      if (
-        !activeTeams.has(match.homeTeamId) ||
-        !activeTeams.has(match.awayTeamId)
-      ) {
-        continue;
-      }
-
-      const winner = sampleKnockoutWinner(
-        matchElos.get(match.homeTeamId)!.knockout,
-        matchElos.get(match.awayTeamId)!.knockout,
-        random,
-      );
-      const winnerId =
-        winner === 'A' ? match.homeTeamId : match.awayTeamId;
-      const loserId =
-        winner === 'A' ? match.awayTeamId : match.homeTeamId;
-      activeTeams.delete(loserId);
-      recordStageReached(stageReached, winnerId, stageIdx);
-
-      if (order === knockoutRoundOrder('Final')) {
-        recordStageReached(stageReached, winnerId, STAGE_KEYS.length);
-        return { championId: winnerId, stageReached };
-      }
+  for (const match of snapshot.matches) {
+    if (match.status !== 'finished' || match.stage !== 'knockout') {
+      continue;
+    }
+    const winner = getMatchWinner(match);
+    if (!winner) {
+      continue;
+    }
+    const loser = getMatchLoser(match, winner);
+    if (loser) {
+      eliminated.add(loser);
     }
   }
 
-  const survivors = [...activeTeams];
-  if (survivors.length === 1) {
-    recordStageReached(stageReached, survivors[0], STAGE_KEYS.length);
-    return { championId: survivors[0], stageReached };
-  }
-
-  if (survivors.length === 0) {
-    const standings = advancers.map((teamId) => ({
-      teamId,
-      played: 3,
-      won: 1,
-      drawn: 0,
-      lost: 0,
-      goalsFor: 1,
-      goalsAgainst: 0,
-      points: 3,
-      position: 1 as const,
-      group: getTeamMap().get(teamId)!.group,
-    }));
-
-    return simulateKnockoutRound(standings, matchElos, random);
-  }
-
-  while (survivors.length > 1) {
-    const stageIdx = stageIdxForSurvivorRound(survivors.length);
-    const nextRound: string[] = [];
-
-    for (let i = 0; i < survivors.length; i += 2) {
-      if (i + 1 >= survivors.length) {
-        nextRound.push(survivors[i]);
-        continue;
-      }
-
-      const teamA = survivors[i];
-      const teamB = survivors[i + 1];
-      const winner = sampleKnockoutWinner(
-        matchElos.get(teamA)!.knockout,
-        matchElos.get(teamB)!.knockout,
-        random,
-      );
-      const winnerId = winner === 'A' ? teamA : teamB;
-      nextRound.push(winnerId);
-      recordStageReached(stageReached, winnerId, stageIdx);
-    }
-
-    survivors.splice(0, survivors.length, ...nextRound);
-  }
-
-  recordStageReached(stageReached, survivors[0], STAGE_KEYS.length);
-  return { championId: survivors[0], stageReached };
-}
-
-function simulateTournament(
-  matchElos: Map<string, { group: number; knockout: number }>,
-  mode: SimulationMode,
-  random: () => number,
-  finishedMatches: Map<string, MatchRecord>,
-  fixturesByGroup: ReturnType<typeof getFixturesByGroup>,
-  knockoutRounds: Map<number, MatchRecord[]>,
-  useLiveKnockout: boolean,
-): { championId: string; stageReached: Map<string, number> } {
-  const advancers = simulateGroupStage(
-    matchElos,
-    mode,
-    random,
-    finishedMatches,
-    fixturesByGroup,
+  // Teams that never appear in any R32 match are group-stage-eliminated,
+  // provided the R32 bracket is fully drawn.
+  const r32Matches = snapshot.matches.filter(
+    (match) =>
+      match.stage === 'knockout' &&
+      knockoutRoundOrder(match.round) === R32_ORDER,
   );
 
-  if (useLiveKnockout) {
-    return simulateKnockoutFromSnapshot(
-      advancers.map((standing) => standing.teamId),
-      matchElos,
-      random,
-      knockoutRounds,
-    );
+  if (r32Matches.length === 0) {
+    return eliminated;
   }
 
-  return simulateKnockoutRound(advancers, matchElos, random);
+  const teamsInR32 = new Set<string>();
+  for (const match of r32Matches) {
+    if (match.homeTeamId) teamsInR32.add(match.homeTeamId);
+    if (match.awayTeamId) teamsInR32.add(match.awayTeamId);
+  }
+
+  // Only mark as eliminated if the R32 bracket is fully populated — otherwise
+  // some teams might still be pending resolution from the group stage.
+  const r32HasAllTeams = r32Matches.every(
+    (match) => match.homeTeamId && match.awayTeamId,
+  );
+
+  if (!r32HasAllTeams) {
+    return eliminated;
+  }
+
+  const teamMap = getTeamMap();
+  for (const team of teamMap.values()) {
+    if (!teamsInR32.has(team.id)) {
+      eliminated.add(team.id);
+    }
+  }
+
+  return eliminated;
 }
 
 function buildChampionResult(
@@ -635,7 +759,9 @@ export function runMonteCarlo(
 ): SimulationResult {
   const resolvedSeed = seed ?? getSeedForMode(simulationMode);
   const knownChampion = snapshot ? findKnownChampion(snapshot) : null;
-  const eliminated = snapshot ? getEliminatedFromSnapshot(snapshot) : new Set<string>();
+  const eliminated = snapshot
+    ? getEliminatedFromSnapshot(snapshot)
+    : new Set<string>();
 
   if (knownChampion) {
     return buildChampionResult(
@@ -658,38 +784,68 @@ export function runMonteCarlo(
     teams.map((team) => [team.id, 0]),
   );
 
-  const finishedMatches = snapshot
-    ? buildFinishedMatchMap(snapshot)
+  const finishedGroupMatches = snapshot
+    ? buildFinishedGroupMatchMap(snapshot)
     : new Map<string, MatchRecord>();
   const fixturesByGroup = getFixturesByGroup();
-  const knockoutRounds = snapshot
-    ? buildKnockoutRounds(snapshot)
-    : new Map<number, MatchRecord[]>();
-  const useLiveKnockout = Boolean(snapshot && snapshot.finishedCount > 0);
+  const knockoutMatches = snapshot ? getKnockoutMatches(snapshot) : [];
+  const useLiveKnockout = knockoutMatches.length > 0;
 
   for (let i = 0; i < iterations; i += 1) {
-    const { championId, stageReached } = simulateTournament(
+    const standingsByGroup = computeGroupStandings(
       matchElos,
       simulationMode,
       random,
-      finishedMatches,
+      finishedGroupMatches,
       fixturesByGroup,
-      knockoutRounds,
-      useLiveKnockout,
     );
 
-    if (eliminated.has(championId)) {
+    let championId: string | null = null;
+    const iterationStageReached = new Map<string, number>();
+
+    if (useLiveKnockout) {
+      const groupPlaceholders = buildGroupPlaceholderMap(standingsByGroup);
+      const live = simulateKnockoutFromBracket(
+        matchElos,
+        random,
+        knockoutMatches,
+        groupPlaceholders,
+      );
+
+      championId = live.championId;
+
+      for (const [teamId, stageIdx] of live.stageReached) {
+        recordStageReached(iterationStageReached, teamId, stageIdx);
+      }
+    } else {
+      const advancers = collectGroupAdvancers(standingsByGroup);
+      for (const advancer of advancers) {
+        recordStageReached(iterationStageReached, advancer.teamId, 1);
+      }
+
+      const { championId: legacyChamp, stageReached: legacyStage } =
+        simulateKnockoutFromAdvancers(advancers, matchElos, random);
+      championId = legacyChamp;
+      for (const [teamId, stageIdx] of legacyStage) {
+        recordStageReached(iterationStageReached, teamId, stageIdx);
+      }
+    }
+
+    if (!championId || eliminated.has(championId)) {
       continue;
     }
 
     winCounts.set(championId, (winCounts.get(championId) ?? 0) + 1);
 
-    for (const [teamId, stageIdx] of stageReached) {
+    for (const [teamId, stageIdx] of iterationStageReached) {
       accumulateStageCounts(stageCounts, teamId, stageIdx);
     }
   }
 
-  const totalWins = [...winCounts.values()].reduce((sum, wins) => sum + wins, 0);
+  const totalWins = [...winCounts.values()].reduce(
+    (sum, wins) => sum + wins,
+    0,
+  );
 
   const teamProbabilities = buildTeamProbabilities(
     teams,

@@ -86,11 +86,41 @@ export default function Wc2026Dashboard({
   );
 
   const liveEyebrow = useMemo(() => {
-    if (result.mode === 'live') {
+    if (result.mode !== 'live' || !snapshot) {
+      return 'PRE-TOURNAMENT · MONTE CARLO MODEL';
+    }
+
+    const rounds = new Set(
+      snapshot.matches
+        .filter((match) => match.stage === 'knockout')
+        .map((match) => match.round.toLowerCase()),
+    );
+
+    const anyFinished = (predicate: (round: string) => boolean) =>
+      snapshot.matches.some(
+        (match) => match.status === 'finished' && predicate(match.round.toLowerCase()),
+      );
+
+    if (anyFinished((r) => r.includes('final') && !r.includes('semi') && !r.includes('quarter') && !r.includes('third') && !r.includes('3rd'))) {
+      return 'CHAMPION CROWNED · FIFA SYNC';
+    }
+    if (anyFinished((r) => r.includes('semi'))) {
+      return 'FINAL WEEK · LIVE MODEL · FIFA SYNC';
+    }
+    if (anyFinished((r) => r.includes('quarter'))) {
+      return 'SEMI-FINALS · LIVE MODEL · FIFA SYNC';
+    }
+    if (anyFinished((r) => r.includes('round of 16') || r.includes('1/8'))) {
+      return 'QUARTER-FINALS · LIVE MODEL · FIFA SYNC';
+    }
+    if (anyFinished((r) => r.includes('round of 32') || r.includes('1/16'))) {
+      return 'ROUND OF 16 · LIVE MODEL · FIFA SYNC';
+    }
+    if (rounds.size > 0 && snapshot.matches.some((m) => m.stage === 'group' && m.status === 'finished')) {
       return 'GROUP STAGE · LIVE MODEL · FIFA SYNC';
     }
-    return 'PRE-TOURNAMENT · MONTE CARLO MODEL';
-  }, [result.mode]);
+    return 'LIVE MODEL · FIFA SYNC';
+  }, [result.mode, snapshot]);
 
   const syncNote = useMemo(() => formatSyncNote(snapshot), [snapshot]);
 
